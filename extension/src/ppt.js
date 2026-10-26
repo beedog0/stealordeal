@@ -139,9 +139,9 @@ export function pptGradedPrice(body, grade) {
 export function describeShape(node, depth = 0) {
   if (Array.isArray(node)) return node.length ? [`${node.length} items`, describeShape(node[0], depth + 1)] : [];
   if (node && typeof node === 'object') {
-    if (depth > 6) return '{…}';
+    if (depth > 8) return '{…}';
     const out = {};
-    for (const [k, v] of Object.entries(node).slice(0, 25)) out[k] = describeShape(v, depth + 1);
+    for (const [k, v] of Object.entries(node).slice(0, 40)) out[k] = describeShape(v, depth + 1);
     return out;
   }
   return typeof node === 'string' ? `string(${node.slice(0, 24)})` : node;
