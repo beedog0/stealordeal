@@ -1,0 +1,9 @@
+{
+  "name": "fairmark",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "data": "node scripts/build-data.mjs --out site --prev-base https://beedog0.github.io/stealordeal/data"
+  }
+}
