@@ -29,3 +29,5 @@ h1 { font-size: 15px; margin: 0; letter-spacing: -0.01em; }
 .back { all: unset; cursor: pointer; color: var(--fm-line); font-size: 12px; font-weight: 600; margin: 4px 0 10px; display: inline-block; }
 #card .fm-card { width: 100%; border: none; padding: 0; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.link { all: unset; cursor: pointer; font-size: 11px; color: var(--fm-line); font-weight: 600; }
+.link:hover { text-decoration: underline; }
