@@ -3,7 +3,7 @@
 import { DATA_BASE, CATEGORIES } from './src/config.js';
 import { buildSearch, confidence, parseTitle, pickSubtype, searchAll } from './src/match.js';
 import { historyStats, rateDeal, seriesPoints } from './src/price.js';
-import { PPT_BASE, mergePoints, pptHistoryPoints, pptUrl } from './src/ppt.js';
+import { PPT_BASE, describeShape, mergePoints, pptGradedPrice, pptHistoryPoints, pptUrl } from './src/ppt.js';
 
 const CACHE = 'fm-data-v1';
 const MAX_AGE = 6 * 3600 * 1000;
@@ -79,23 +79,29 @@ async function pptFetch(url, key) {
   return JSON.parse(body);
 }
 
-// Longer Pokémon history from PokemonPriceTracker when the user has added a key.
-// Any failure falls back to our own daily history.
-async function pptHistory(product, subtype) {
-  if (product.catId !== 3) return null;
+// Pokémon history (and graded prices for graded listings) from PokemonPriceTracker,
+// when the user has added a key. Never throws: problems come back as `error`.
+async function pptData(product, subtype, grade) {
+  if (product.catId !== 3) return { status: 'unsupported' };
   const key = await getPptKey();
-  if (!key) return null;
+  if (!key) return { status: 'nokey' };
   try {
-    const pts = pptHistoryPoints(await pptFetch(pptUrl(product.productId, product.sealed), key), subtype);
-    return pts.length ? pts : null;
+    const body = await pptFetch(pptUrl(product.productId, product.sealed, { ebay: Boolean(grade) }), key);
+    const points = pptHistoryPoints(body, subtype);
+    return {
+      status: 'ok',
+      points: points.length ? points : null,
+      graded: grade ? pptGradedPrice(body, grade) : null,
+      error: points.length ? null : 'no price history in the response',
+    };
   } catch (err) {
-    console.warn('Fairmark: history lookup failed', err);
-    return null;
+    console.warn('Fairmark: PokemonPriceTracker lookup failed', err);
+    return { status: 'error', error: err.message };
   }
 }
 
 // Full price details for one product and printing.
-async function details(catId, productId, subtype, ask) {
+async function details(catId, productId, subtype, ask, grade = null) {
   const search = await loadSearch(catId);
   const product = search.products[search.byId.get(productId)];
   if (!product) return null;
@@ -104,10 +110,14 @@ async function details(catId, productId, subtype, ask) {
   const key = `${productId}|${chosen}`;
   const [market, low, mid] = history.cur?.[key] ?? [null, null, null];
   const ours = seriesPoints(history, key, 90);
-  const extra = await pptHistory(product, chosen);
+  const ppt = await pptData(product, chosen, grade);
+  const extra = ppt.points;
   const since = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
   const points = extra ? mergePoints(extra, ours).filter((p) => p.date >= since) : ours;
   const marketPrice = market ?? points.at(-1)?.price ?? null;
+  const graded = grade ? { ...grade, price: ppt.graded?.price ?? null, sales: ppt.graded?.sales ?? null } : null;
+  // A graded listing is only rated against sales of the same grade.
+  const compareTo = grade ? graded.price : marketPrice;
   return {
     ...summary(product, search),
     subtype: chosen,
@@ -116,9 +126,11 @@ async function details(catId, productId, subtype, ask) {
     mid,
     updated: history.end ?? search.updated,
     historySource: extra ? 'PokemonPriceTracker' : 'TCGplayer',
+    ppt: { status: ppt.status, error: ppt.error ?? null },
+    graded,
     points,
     stats: historyStats(points),
-    deal: rateDeal(ask, marketPrice),
+    deal: rateDeal(ask, compareTo),
   };
 }
 
@@ -129,7 +141,7 @@ async function lookup({ title, price }) {
   const conf = confidence(results);
   if (!results.length) return { confidence: conf, parsed };
   const best = results[0].product;
-  const item = await details(best.catId, best.productId, pickSubtype(best.subtypes, parsed.finish), price);
+  const item = await details(best.catId, best.productId, pickSubtype(best.subtypes, parsed.finish), price, parsed.grade);
   return {
     confidence: conf,
     parsed,
@@ -147,8 +159,8 @@ const handlers = {
   async lookup(msg) {
     return lookup(msg);
   },
-  async details({ catId, productId, subtype, price }) {
-    return details(catId ?? (await findProduct(productId)), productId, subtype, price);
+  async details({ catId, productId, subtype, price, grade }) {
+    return details(catId ?? (await findProduct(productId)), productId, subtype, price, grade ?? null);
   },
   async search({ query }) {
     const indexes = await loadAll();
@@ -157,13 +169,21 @@ const handlers = {
   async meta() {
     return getJson(`${DATA_BASE}/meta.json`);
   },
-  // Checks a PokemonPriceTracker key; returns the credits left today when the API reports them.
+  // Checks a PokemonPriceTracker key with a sample card (Charizard ex 199/165, 3 credits)
+  // and reports what history and graded data came back, plus the response shape for debugging.
   async testPptKey({ key }) {
-    const res = await fetch(`${PPT_BASE}/sets?limit=1`, { headers: { Authorization: `Bearer ${key}` } });
+    const res = await fetch(pptUrl(517045, false, { ebay: true }), { headers: { Authorization: `Bearer ${key}` } });
     if (res.status === 401) throw new Error('That key was not accepted.');
-    if (!res.ok) throw new Error(`PokemonPriceTracker HTTP ${res.status}`);
-    return { remaining: res.headers.get('X-RateLimit-Daily-Remaining') };
+    if (!res.ok) throw new Error(`PokemonPriceTracker HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const body = await res.json();
+    return {
+      remaining: res.headers.get('X-RateLimit-Daily-Remaining'),
+      historyDays: pptHistoryPoints(body, 'Holofoil').length,
+      psa10: pptGradedPrice(body, { company: 'PSA', grade: '10' })?.price ?? null,
+      shape: JSON.stringify(describeShape(body), null, 1).slice(0, 6000),
+    };
   },
+
 };
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {

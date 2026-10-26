@@ -2,11 +2,11 @@
 
 // Bands are the asking price's distance from market, in percent.
 export const DEAL_BANDS = [
-  { key: 'steal', label: 'Steal', max: -20 },
-  { key: 'good', label: 'Good deal', max: -8 },
-  { key: 'fair', label: 'Fair price', max: 8 },
-  { key: 'pricey', label: 'Pricey', max: 25 },
-  { key: 'over', label: 'Overpaying', max: Infinity },
+  { key: 'steal', label: 'Super good buy', max: -20 },
+  { key: 'good', label: 'Good buy', max: -8 },
+  { key: 'fair', label: 'OK deal', max: 8 },
+  { key: 'pricey', label: 'Pass', max: 25 },
+  { key: 'over', label: 'Super bad', max: Infinity },
 ];
 
 export function rateDeal(ask, market) {

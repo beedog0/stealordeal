@@ -60,14 +60,19 @@
 .fm-ask { display: flex; align-items: baseline; gap: 2px; font-size: 20px; font-weight: 700; margin-top: 1px; }
 .fm-ask input { all: unset; width: 100%; font-variant-numeric: tabular-nums; color: var(--fm-ink); border-bottom: 1px dashed var(--fm-border); }
 .fm-ask input:focus { border-bottom-color: var(--fm-line); }
-.fm-deal { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; padding: 9px 12px; border-radius: 10px; font-weight: 600; }
-.fm-deal small { font-weight: 500; font-size: 12px; }
-.fm-deal.steal { color: var(--fm-steal-ink); background: var(--fm-steal-bg); }
-.fm-deal.good { color: var(--fm-good-ink); background: var(--fm-good-bg); }
-.fm-deal.fair { color: var(--fm-fair-ink); background: var(--fm-fair-bg); }
-.fm-deal.pricey { color: var(--fm-pricey-ink); background: var(--fm-pricey-bg); }
-.fm-deal.over { color: var(--fm-over-ink); background: var(--fm-over-bg); }
-.fm-deal-icon { font-size: 15px; margin-right: 6px; }
+.fm-verdict { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 12px 14px; border-radius: 12px; color: var(--fm-fair-ink); background: var(--fm-fair-bg); }
+.fm-verdict-icon { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; font-size: 17px; font-weight: 800; background: currentColor; }
+.fm-verdict-icon span { color: var(--fm-surface); }
+.fm-verdict-label { font-size: 22px; font-weight: 800; line-height: 1.1; letter-spacing: -0.01em; }
+.fm-verdict-sub { font-size: 12px; font-weight: 500; margin-top: 2px; color: var(--fm-ink-2); font-variant-numeric: tabular-nums; }
+.fm-verdict.steal { color: var(--fm-steal-ink); background: var(--fm-steal-bg); }
+.fm-verdict.good { color: var(--fm-good-ink); background: var(--fm-good-bg); }
+.fm-verdict.fair { color: var(--fm-fair-ink); background: var(--fm-fair-bg); }
+.fm-verdict.pricey { color: var(--fm-pricey-ink); background: var(--fm-pricey-bg); }
+.fm-verdict.over { color: var(--fm-over-ink); background: var(--fm-over-bg); }
+.fm-verdict.none .fm-verdict-label { font-size: 15px; font-weight: 700; color: var(--fm-ink-2); }
+.fm-verdict.none .fm-verdict-icon { background: var(--fm-border); }
+.fm-value-sub { font-size: 11px; color: var(--fm-muted); margin-top: 1px; font-variant-numeric: tabular-nums; }
 .fm-note { margin-top: 8px; font-size: 12px; color: var(--fm-ink-2); background: var(--fm-raised); border-radius: 8px; padding: 7px 10px; }
 .fm-chart { margin-top: 12px; position: relative; }
 .fm-chart-head { display: flex; justify-content: space-between; font-size: 12px; color: var(--fm-muted); margin-bottom: 4px; }
@@ -89,7 +94,7 @@
 @media (prefers-reduced-motion: reduce) { .fm-skel { animation: none; } }
 `;
 
-  const DEAL_ICON = { steal: '★', good: '▼', fair: '●', pricey: '▲', over: '▲' };
+  const DEAL_ICON = { steal: '★', good: '✓', fair: '≈', pricey: '!', over: '✕', none: '?' };
 
   const usd = (n) =>
     n == null ? '—' : `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -115,7 +120,7 @@
     return el;
   };
 
-  function chart(points, stats) {
+  function chart(points, stats, title = 'history') {
     const W = 290;
     const H = 64;
     const pad = 4;
@@ -169,7 +174,7 @@
     const arrow = change > 0.5 ? '▲' : change < -0.5 ? '▼' : '';
     wrap.append(
       h('div', { class: 'fm-chart-head' },
-        h('span', {}, `${stats.days >= 85 ? '90-day' : `${stats.days}-day`} history`),
+        h('span', {}, `${stats.days >= 85 ? '90-day' : `${stats.days}-day`} ${title}`),
         h('span', {}, `${arrow} `, h('strong', {}, `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`))),
       plot,
       tip,
@@ -180,16 +185,21 @@
     return wrap;
   }
 
-  function dealBlock(deal) {
-    if (!deal) return null;
-    const pct = Math.abs(deal.pct).toFixed(0);
-    const text =
-      Math.abs(deal.pct) < 0.5
-        ? 'Right at market'
-        : `${pct}% ${deal.pct < 0 ? 'under' : 'over'} market (${deal.diff < 0 ? '−' : '+'}${usd(Math.abs(deal.diff))})`;
-    return h('div', { class: `fm-deal ${deal.key}`, role: 'status' },
-      h('span', {}, h('span', { class: 'fm-deal-icon', 'aria-hidden': 'true' }, DEAL_ICON[deal.key]), deal.label),
-      h('small', {}, text));
+  // The headline: a colored verdict, or a neutral line saying why there isn't one.
+  function verdict(deal, against, why) {
+    if (!deal) {
+      return h('div', { class: 'fm-verdict none', role: 'status' },
+        h('div', { class: 'fm-verdict-icon', 'aria-hidden': 'true' }, h('span', {}, DEAL_ICON.none)),
+        h('div', {}, h('div', { class: 'fm-verdict-label' }, why)));
+    }
+    const pct = Math.abs(deal.pct);
+    const sub =
+      pct < 0.5
+        ? `Right at ${against}`
+        : `${usd(Math.abs(deal.diff))} ${deal.pct < 0 ? 'under' : 'over'} ${against} (${pct >= 1000 ? `${(deal.pct / 100 + 1).toFixed(0)}×` : `${pct.toFixed(0)}%`})`;
+    return h('div', { class: `fm-verdict ${deal.key}`, role: 'status' },
+      h('div', { class: 'fm-verdict-icon', 'aria-hidden': 'true' }, h('span', {}, DEAL_ICON[deal.key])),
+      h('div', {}, h('div', { class: 'fm-verdict-label' }, deal.label), h('div', { class: 'fm-verdict-sub' }, sub)));
   }
 
   // state: { status: 'loading' | 'error' | 'empty' | 'ready', item, alternatives, confidence, parsed, ask, message }
@@ -226,30 +236,53 @@
           h('div', {}, h('p', { class: 'fm-name' }, item.name), h('div', { class: 'fm-sub' }, sub), subtypeSelect)),
       );
 
+      const graded = item.graded ?? parsed.grade ?? null;
+      const gradeName = graded ? `${graded.company} ${graded.grade}` : '';
+      const reference = graded ? graded.price ?? null : item.market;
+
+      let why = null;
+      if (parsed.lot) why = 'Lot or multiple copies';
+      else if (graded && reference == null) why = `No ${gradeName} price yet`;
+      else if (reference == null) why = 'No market price yet';
+      else if (!state.ask) why = 'Enter a price to rate it';
+      card.append(verdict(why ? null : item.deal, graded ? `${gradeName} price` : 'market', why));
+
       const input = h('input', { type: 'text', inputmode: 'decimal', placeholder: '0.00', 'aria-label': 'Your price in US dollars', value: state.ask ? Number(state.ask).toFixed(2) : '' });
       input.addEventListener('change', () => on.ask?.(Number(input.value.replace(/[^0-9.]/g, '')) || null));
       card.append(
         h('div', { class: 'fm-prices' },
-          h('div', { class: 'fm-tile' }, h('div', { class: 'fm-label' }, 'Market price'), h('div', { class: 'fm-value' }, usd(item.market))),
+          h('div', { class: 'fm-tile' },
+            h('div', { class: 'fm-label' }, graded ? `${gradeName} price` : 'Market price'),
+            h('div', { class: 'fm-value' }, usd(reference)),
+            graded ? h('div', { class: 'fm-value-sub' }, `Ungraded ${usd(item.market)}`) : null),
           h('div', { class: 'fm-tile' }, h('div', { class: 'fm-label' }, opts.askLabel ?? 'Your price'), h('div', { class: 'fm-ask' }, '$', input))),
       );
 
-      const graded = parsed.grade;
-      const deal = !graded && !parsed.lot ? dealBlock(item.deal) : null;
-      if (deal) card.append(deal);
-      if (graded) {
-        card.append(h('div', { class: 'fm-note' }, `Graded ${graded.company} ${graded.grade}. The market price shown is for an ungraded copy, so graded copies usually sell for more.`));
+      const ppt = item.ppt ?? {};
+      if (graded && reference != null) {
+        card.append(h('div', { class: 'fm-note' }, `Compared with recent ${gradeName} eBay sales${graded.sales ? ` (${graded.sales} sold)` : ''}.`));
+      } else if (graded) {
+        const reason =
+          ppt.status === 'nokey' ? `Add a PokemonPriceTracker key in Settings to compare with ${gradeName} sales.`
+          : ppt.status === 'unsupported' ? 'Graded prices are only available for Pokémon so far.'
+          : ppt.status === 'error' ? `Couldn't load graded prices (${ppt.error}).`
+          : `No recent ${gradeName} sales found.`;
+        card.append(h('div', { class: 'fm-note' }, `${reason} Graded copies usually sell for well above the ungraded price.`));
       } else if (parsed.lot) {
         card.append(h('div', { class: 'fm-note' }, 'This looks like a lot or multiple copies, so compare against the market price times the quantity.'));
       }
       if (state.confidence === 'low' || state.confidence === 'medium') {
         card.append(h('div', { class: 'fm-note' }, 'Best guess from the listing title. Check that this is the right item.'));
       }
-      if (item.market == null) card.append(h('div', { class: 'fm-note' }, 'Not enough recent sales for a market price.'));
 
-      if (item.points?.length >= 2) card.append(chart(item.points, item.stats));
-      else if (item.points?.length === 1) {
-        card.append(h('div', { class: 'fm-note' }, `Price history is tracked daily from ${fmtDate(item.points[0].date)}, so the chart fills in over the coming days.`));
+      if (item.points?.length >= 2) card.append(chart(item.points, item.stats, graded ? 'ungraded history' : 'history'));
+      else {
+        const more =
+          ppt.status === 'nokey' ? ' Add a PokemonPriceTracker key in Settings for 90 days of history now.'
+          : ppt.status === 'error' || ppt.error ? ` Couldn't load longer history (${ppt.error}).`
+          : '';
+        const since = item.points?.[0]?.date;
+        card.append(h('div', { class: 'fm-note' }, `${since ? `Price history is tracked daily from ${fmtDate(since)}, so the chart fills in over the coming days.` : 'No price history yet.'}${more}`));
       }
 
       const alts = (state.alternatives ?? []).filter((a) => a.productId !== item.productId);
