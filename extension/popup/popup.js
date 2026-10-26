@@ -41,7 +41,7 @@ async function runSearch(query) {
               h('button', { onclick: () => openItem(it) }, img,
                 h('div', {},
                   h('div', { class: 'name' }, it.name),
-                  h('div', { class: 'meta' }, [it.setName, it.number, it.sealed ? 'Sealed' : it.rarity].filter(Boolean).join(' · ')))));
+                  h('div', { class: 'meta' }, [it.setName, it.name.includes(it.number) ? '' : it.number, it.sealed ? 'Sealed' : it.rarity].filter(Boolean).join(' · ')))));
           })
         : [h('li', { class: 'hint' }, 'No matches yet. Try the set name or card number.')]),
     );
@@ -69,9 +69,9 @@ async function openItem(it) {
     } catch (err) {
       Object.assign(state, { status: 'error', message: `Couldn't load prices: ${err.message}` });
     }
-    SODCard.render(root, state, handlers);
+    SODCard.render(root, state, handlers, { brand: false });
   }
-  SODCard.render(root, state, handlers);
+  SODCard.render(root, state, handlers, { brand: false });
   await load(null);
   root.querySelector('input')?.focus();
 }

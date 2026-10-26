@@ -196,7 +196,7 @@
   // on: { close, ask(price), pick(alt), subtype(name) }
   function render(root, state, on = {}, opts = {}) {
     const card = h('div', { class: `sod-card${opts.floating ? ' sod-floating' : ''}` });
-    card.append(
+    if (opts.brand !== false) card.append(
       h('div', { class: 'sod-top' },
         h('span', { class: 'sod-brand' }, 'Steal or Deal'),
         on.close ? h('button', { class: 'sod-icon-btn', 'aria-label': 'Close', title: 'Close', onclick: on.close }, '×') : null),
@@ -208,7 +208,8 @@
       card.append(h('div', { class: 'sod-empty' }, state.message ?? 'No price match found for this item.'));
     } else {
       const { item, parsed = {} } = state;
-      const sub = [item.setName, item.number, item.sealed ? 'Sealed' : item.rarity].filter(Boolean).join(' · ');
+      const number = item.name.includes(item.number) ? '' : item.number;
+      const sub = [item.setName, number, item.sealed ? 'Sealed' : item.rarity].filter(Boolean).join(' · ');
       const img = h('img', { class: 'sod-thumb', src: item.image, alt: '', loading: 'lazy' });
       img.addEventListener('error', () => img.remove());
       const subtypeSelect =

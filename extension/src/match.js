@@ -178,7 +178,9 @@ export function search(searchIndex, q, limit = 5) {
     if (s > 2) scored.push({ product: p, score: s });
   }
   scored.sort((a, b) => b.score - a.score || (b.product.groupId - a.product.groupId));
-  return scored.slice(0, limit);
+  // Drop weak tail matches that only share a common word with the query.
+  const floor = (scored[0]?.score ?? 0) * 0.6;
+  return scored.filter((r) => r.score >= floor).slice(0, limit);
 }
 
 // Search several categories (one buildSearch result each) and merge.
