@@ -35,7 +35,7 @@ async function readJson(file) {
 }
 
 for (const date of dates) {
-  const work = await mkdtemp(path.join(tmpdir(), 'sod-'));
+  const work = await mkdtemp(path.join(tmpdir(), 'fm-'));
   const archive = path.join(work, 'prices.7z');
   const res = await fetch(`https://tcgcsv.com/archive/tcgplayer/prices-${date}.ppmd.7z`, {
     headers: { 'User-Agent': config.userAgent },

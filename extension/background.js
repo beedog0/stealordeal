@@ -4,7 +4,7 @@ import { DATA_BASE, CATEGORIES } from './src/config.js';
 import { buildSearch, confidence, parseTitle, pickSubtype, searchAll } from './src/match.js';
 import { historyStats, rateDeal, seriesPoints } from './src/price.js';
 
-const CACHE = 'sod-data-v1';
+const CACHE = 'fm-data-v1';
 const MAX_AGE = 6 * 3600 * 1000;
 const searches = new Map();
 const pending = new Map();
@@ -13,13 +13,13 @@ const pending = new Map();
 async function getJson(url, maxAge = MAX_AGE) {
   const cache = await caches.open(CACHE);
   const hit = await cache.match(url);
-  const fetchedAt = Number(hit?.headers.get('x-sod-fetched') ?? 0);
+  const fetchedAt = Number(hit?.headers.get('x-fm-fetched') ?? 0);
   if (hit && Date.now() - fetchedAt < maxAge) return hit.json();
   try {
     const res = await fetch(url, { cache: 'no-cache' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const body = await res.text();
-    await cache.put(url, new Response(body, { headers: { 'content-type': 'application/json', 'x-sod-fetched': String(Date.now()) } }));
+    await cache.put(url, new Response(body, { headers: { 'content-type': 'application/json', 'x-fm-fetched': String(Date.now()) } }));
     return JSON.parse(body);
   } catch (err) {
     if (hit) return hit.json(); // Stale data beats no data when offline.

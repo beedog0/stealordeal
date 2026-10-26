@@ -1,4 +1,4 @@
-# Steal or Deal
+# Fairmark
 
 A Chrome extension that shows the market price of trading cards and sealed product while you shop, tells you whether a listing is a steal or overpriced, and charts its recent price history.
 
@@ -46,4 +46,4 @@ node scripts/smoke.mjs site/data           # check matching against the real cat
 
 To add a game, add its TCGplayer category to `data.config.json` and `extension/src/config.js` (for example One Piece or Yu-Gi-Oh!).
 
-Prices come from TCGplayer via [TCGCSV](https://tcgcsv.com), with thanks. Steal or Deal is not affiliated with TCGplayer, eBay, The Pokémon Company or Wizards of the Coast.
+Prices come from TCGplayer via [TCGCSV](https://tcgcsv.com), with thanks. Fairmark is not affiliated with TCGplayer, eBay, The Pokémon Company or Wizards of the Coast.

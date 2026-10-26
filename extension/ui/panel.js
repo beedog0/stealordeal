@@ -1,5 +1,5 @@
 // On-page panel: mounts the price card in a Shadow DOM (so site CSS can't touch it)
-// and wires its controls to the service worker. Exposes globalThis.SODPanel.
+// and wires its controls to the service worker. Exposes globalThis.FairmarkPanel.
 (() => {
   const send = (msg) =>
     chrome.runtime.sendMessage(msg).then((res) => {
@@ -12,14 +12,14 @@
   function mount(anchor) {
     host?.remove();
     host = document.createElement('div');
-    host.id = 'steal-or-deal';
+    host.id = 'fairmark-panel';
     const floating = !anchor;
     host.style.cssText = floating
       ? 'position:fixed;right:20px;bottom:20px;z-index:2147483646;'
       : 'display:block;margin:12px 0;';
     const shadow = host.attachShadow({ mode: 'open' });
     const style = document.createElement('style');
-    style.textContent = SODCard.CSS;
+    style.textContent = FairmarkCard.CSS;
     const root = document.createElement('div');
     shadow.append(style, root);
     if (anchor) anchor.after(host);
@@ -44,7 +44,7 @@
       },
       subtype: (st) => refresh(state.item.productId, st),
     };
-    const draw = () => SODCard.render(root, state, handlers, opts);
+    const draw = () => FairmarkCard.render(root, state, handlers, opts);
 
     async function refresh(productId, subtype, catId) {
       try {
@@ -75,5 +75,5 @@
     draw();
   }
 
-  globalThis.SODPanel = { show, remove: () => host?.remove() };
+  globalThis.FairmarkPanel = { show, remove: () => host?.remove() };
 })();

@@ -78,7 +78,7 @@ for (const cat of config.categories) {
 await writeJson(path.join(dataDir, 'meta.json'), meta);
 await writeFile(
   path.join(args.out, 'index.html'),
-  `<!doctype html><meta charset="utf-8"><title>Steal or Deal data</title>
-<p>Price data for the Steal or Deal Chrome extension, updated ${date}.
+  `<!doctype html><meta charset="utf-8"><title>Fairmark data</title>
+<p>Price data for the Fairmark Chrome extension, updated ${date}.
 Prices from TCGplayer via <a href="https://tcgcsv.com">TCGCSV</a>, with thanks.</p>`,
 );

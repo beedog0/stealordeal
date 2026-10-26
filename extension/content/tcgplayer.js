@@ -8,8 +8,8 @@
     const id = m ? Number(m[1]) : null;
     if (id === current) return;
     current = id;
-    if (id) SODPanel.show({ productId: id }, { askLabel: 'Price to check' });
-    else SODPanel.remove();
+    if (id) FairmarkPanel.show({ productId: id }, { askLabel: 'Price to check' });
+    else FairmarkPanel.remove();
   }
 
   check();

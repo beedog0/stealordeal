@@ -37,5 +37,5 @@
   if (!title || !isCardListing(title)) return;
   const isUsd = !currency || currency === 'USD';
   const anchor = document.querySelector('.x-price-section, .x-bin-price, [data-testid="x-price-section"]');
-  SODPanel.show({ title }, { anchor, ask: isUsd ? price : null, askLabel: isUsd ? 'Listing price' : 'Your price (USD)' });
+  FairmarkPanel.show({ title }, { anchor, ask: isUsd ? price : null, askLabel: isUsd ? 'Listing price' : 'Your price (USD)' });
 })();

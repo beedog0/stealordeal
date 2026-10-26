@@ -1,8 +1,8 @@
 // Popup: search any card or sealed product and check a price by hand.
-const { h } = SODCard;
+const { h } = FairmarkCard;
 
 const style = document.createElement('style');
-style.textContent = SODCard.CSS;
+style.textContent = FairmarkCard.CSS;
 document.head.append(style);
 
 const $ = (id) => document.getElementById(id);
@@ -69,9 +69,9 @@ async function openItem(it) {
     } catch (err) {
       Object.assign(state, { status: 'error', message: `Couldn't load prices: ${err.message}` });
     }
-    SODCard.render(root, state, handlers, { brand: false });
+    FairmarkCard.render(root, state, handlers, { brand: false });
   }
-  SODCard.render(root, state, handlers, { brand: false });
+  FairmarkCard.render(root, state, handlers, { brand: false });
   await load(null);
   root.querySelector('input')?.focus();
 }
