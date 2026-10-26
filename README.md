@@ -34,8 +34,8 @@ TCGCSV (daily TCGplayer prices) ──► GitHub Actions, daily ──► GitHub
 
 1. In the repo's **Settings → Pages**, set **Source** to **GitHub Actions**.
 2. In **Actions → Price data**, click **Run workflow** once with the defaults. Later runs happen daily on their own.
-3. Optional, for 90 days of Pokémon history right away: right-click the Fairmark icon → **Options**, paste a [PokemonPriceTracker](https://www.pokemonpricetracker.com) API key, and click **Save**. The key stays in your browser. Each product you open costs about 2 credits, cached for 12 hours.
-4. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and choose the `extension` folder.
+3. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and choose the `extension` folder.
+4. Optional, for 90 days of Pokémon history right away: right-click the Fairmark icon → **Options**, paste a [PokemonPriceTracker](https://www.pokemonpricetracker.com) API key, and click **Save**. The key stays in your browser. Each product you open costs about 2 credits, cached for 12 hours.
 
 ## Development
 
