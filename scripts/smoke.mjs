@@ -13,16 +13,16 @@ const log = (line) => {
 };
 const CASES = [
   ['Pokemon Charizard ex 199/165 Special Illustration Rare SV 151 NM', /^Charizard ex - 199\/165/],
-  ['Pokemon TCG Surging Sparks Elite Trainer Box ETB Factory Sealed', /Surging Sparks.*Elite Trainer Box/],
+  ['Pokemon TCG Surging Sparks Elite Trainer Box ETB Factory Sealed', /^Surging Sparks (Pokemon Center )?Elite Trainer Box$/],
   ['Umbreon ex 161/131 Prismatic Evolutions SIR Pokemon', /^Umbreon ex - 161\/131/],
   ['Pokemon Prismatic Evolutions Booster Bundle Sealed', /Prismatic Evolutions Booster Bundle/],
   ['Pikachu ex 238/191 Surging Sparks Pokemon Card', /^Pikachu ex - 238\/191/],
   ['Lugia V Alternate Art 186/195 Silver Tempest', /Lugia V/],
-  ['Umbreon VMAX 215/203 Evolving Skies Alt Art Moonbreon', /Umbreon VMAX.*215\/203/],
-  ['Pokemon 151 Ultra Premium Collection UPC Sealed', /151 Ultra Premium Collection/],
+  ['Umbreon VMAX 215/203 Evolving Skies Alt Art Moonbreon', /^Umbreon VMAX \(Alternate Art Secret\)/],
+  ['Pokemon 151 Ultra Premium Collection UPC Sealed', /^151 Ultra.Premium Collection$/],
   ['Pokemon Surging Sparks Booster Box 36 Packs', /Surging Sparks Booster Box/],
   ['MTG Sheoldred, the Apocalypse Dominaria United DMU 107 NM', /^Sheoldred, the Apocalypse/],
-  ['Magic the Gathering Bloomburrow Play Booster Box Sealed', /Bloomburrow Play Booster Box/],
+  ['Magic the Gathering Bloomburrow Play Booster Box Sealed', /^Bloomburrow - Play Booster Display$/],
   ['MTG The One Ring Lord of the Rings LTR 246', /^The One Ring/],
 ];
 

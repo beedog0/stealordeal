@@ -7,6 +7,8 @@ const ALIASES = [
   [/\bspc\b/g, 'super premium collection'],
   [/\bpkmn\b/g, 'pokemon'],
   [/\bbooster bx\b/g, 'booster box'],
+  // TCGplayer calls Magic booster boxes "displays".
+  [/\bdisplay\b/g, 'box'],
 ];
 
 // Words that describe the listing rather than the product.
@@ -126,10 +128,12 @@ export function scoreProduct(search, p, q, qset) {
   const { idf } = search;
   let nameTotal = 0;
   let nameHit = 0;
+  let nameMiss = 0;
   for (const t of p.nameTokens) {
     const w = idf(t);
     nameTotal += w;
     if (qset.has(t)) nameHit += w;
+    else nameMiss++;
   }
   if (!nameHit) return -Infinity;
   const group = search.groups[p.groupId];
@@ -153,6 +157,8 @@ export function scoreProduct(search, p, q, qset) {
   let score = 6 * (nameHit / nameTotal) + 3 * (queryTotal ? queryHit / queryTotal : 0);
   score += groupTotal ? 2 * (groupHit / groupTotal) : 0;
   score += numberScore(p, q.numbers);
+  // Each extra word in the product name ("Case", "Code Card", "Showcase") is a variant the title didn't ask for.
+  score -= 0.6 * Math.min(nameMiss, 4);
   return score;
 }
 

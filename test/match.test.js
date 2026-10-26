@@ -24,6 +24,25 @@ test('matches sealed products and expands ETB', () => {
   assert.equal(top('Pokémon TCG Scarlet & Violet 151 Booster Bundle'), 502000);
 });
 
+test('ranks the plain product above its case and code card', () => {
+  const res = search(ix, 'Pokemon TCG Surging Sparks Elite Trainer Box ETB Factory Sealed');
+  assert.equal(res[0].product.productId, 565601);
+  assert.equal(confidence(res), 'high');
+});
+
+test('treats Magic booster displays as booster boxes', () => {
+  const mtg = buildSearch(1, {
+    updated: '2026-10-25',
+    groups: { 24000: ['Bloomburrow', 'BLB', '2024-08-02'] },
+    products: [
+      [540000, 'Bloomburrow - Play Booster Pack', 24000, '', '', 1, 'Normal'],
+      [540001, 'Bloomburrow - Play Booster Display', 24000, '', '', 1, 'Normal'],
+      [540002, 'Bloomburrow - Play Booster Display Case', 24000, '', '', 1, 'Normal'],
+    ],
+  });
+  assert.equal(search(mtg, 'Magic the Gathering Bloomburrow Play Booster Box Sealed')[0].product.productId, 540001);
+});
+
 test('prefers the full product name over a shorter one it contains', () => {
   assert.equal(top('Lugia V Alternate Full Art 186/195 Silver Tempest'), 451397);
   assert.equal(top('Lugia VSTAR 139/195 Silver Tempest'), 451396);

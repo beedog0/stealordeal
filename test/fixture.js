@@ -18,6 +18,8 @@ export const pokemonIndex = {
     [565600, 'Surging Sparks Booster Box', 23651, '', '', 1, 'Normal'],
     [565601, 'Surging Sparks Elite Trainer Box', 23651, '', '', 1, 'Normal'],
     [565602, 'Surging Sparks Booster Pack', 23651, '', '', 1, 'Normal'],
+    [565603, 'Code Card - Surging Sparks Elite Trainer Box', 23651, '', '', 0, 'Normal'],
+    [565604, 'Surging Sparks Elite Trainer Box Case', 23651, '', '', 1, 'Normal'],
     [565700, 'Pikachu ex - 238/191', 23651, '238/191', 'Special Illustration Rare', 0, 'Holofoil'],
     [565701, 'Pikachu ex - 057/191', 23651, '057/191', 'Double Rare', 0, 'Holofoil'],
     [451396, 'Lugia VSTAR', 3170, '139/195', 'Ultra Rare', 0, 'Holofoil'],
