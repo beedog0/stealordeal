@@ -34,6 +34,9 @@ async function readJson(file) {
   }
 }
 
+const failures = [];
+let mergedDays = 0;
+
 for (const date of dates) {
   const work = await mkdtemp(path.join(tmpdir(), 'fm-'));
   const archive = path.join(work, 'prices.7z');
@@ -41,8 +44,10 @@ for (const date of dates) {
     headers: { 'User-Agent': config.userAgent },
   });
   if (!res.ok) {
-    console.warn(`${date}: archive unavailable (HTTP ${res.status}), skipping`);
+    failures.push(`${date}: HTTP ${res.status} ${res.statusText} ${(await res.text()).slice(0, 120).replace(/\s+/g, ' ')}`);
+    console.warn(failures.at(-1));
     await rm(work, { recursive: true, force: true });
+    await sleep(500);
     continue;
   }
   await writeFile(archive, Buffer.from(await res.arrayBuffer()));
@@ -67,6 +72,16 @@ for (const date of dates) {
     }
   }
   console.log(`${date}: merged ${groups} sets`);
+  if (groups) mergedDays++;
+  else failures.push(`${date}: archive had no ${config.categories.map((c) => c.id).join('/')} folders (top level: ${(await readdir(work)).join(', ')})`);
   await rm(work, { recursive: true, force: true });
   await sleep(500);
 }
+
+console.log(`Backfill merged ${mergedDays} of ${dates.length} days`);
+if (failures.length && process.env.GITHUB_ACTIONS) {
+  const esc = (t) => t.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+  console.log(`::warning title=Backfill problems::${esc(failures.slice(0, 20).join('\n'))}`);
+}
+// A backfill that merged nothing would silently publish empty history, so fail instead.
+if (dates.length && !mergedDays) process.exit(1);
