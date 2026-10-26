@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildSearch, confidence, parseTitle, pickSubtype, search } from '../extension/src/match.js';
+import { buildSearch, confidence, parseTitle, pickSubtype, search, searchAll } from '../extension/src/match.js';
 import { pokemonIndex } from './fixture.js';
 
 const ix = buildSearch(3, pokemonIndex);
@@ -60,8 +60,18 @@ test('parses grades, finishes and lots', () => {
   assert.equal(parseTitle('Sheoldred Foil DMU').finish, 'foil');
   assert.equal(parseTitle('Pikachu x4 playset').lot, true);
   assert.equal(parseTitle('Pikachu ex 238/191').lot, false);
-  assert.equal(parseTitle('Pokemon Charizard').game, 3);
-  assert.equal(parseTitle('MTG Sheoldred').game, 1);
+  assert.deepEqual(parseTitle('Pokemon Charizard').games, [3]);
+  assert.deepEqual(parseTitle('MTG Sheoldred').games, [1]);
+  assert.equal(parseTitle('Sheoldred').games, null);
+});
+
+test('works out the game and language', () => {
+  assert.deepEqual(parseTitle('Mew 183/172 PSA 10 Full Art S12a VSTAR Universe JP').games, [85]);
+  assert.deepEqual(parseTitle('POKEMON PIKACHU 001/025 25TH ANNIVERSARY COLLECTION JAPANESE PSA 10').games, [85]);
+  assert.deepEqual(parseTitle('Mew VSTAR 183/172').games, [3]);
+  assert.deepEqual(parseTitle('Pikachu 001/028', { game: 'pokemon', language: 'japanese' }).games, [85]);
+  assert.deepEqual(parseTitle('Pikachu JP promo', { game: 'pokemon', language: 'english' }).games, [3]);
+  assert.deepEqual(parseTitle('Black Lotus', { game: 'magic' }).games, [1]);
 });
 
 test('picks the printing from the title', () => {
@@ -70,4 +80,21 @@ test('picks the printing from the title', () => {
   assert.equal(pickSubtype(['Normal', 'Foil'], 'foil'), 'Foil');
   assert.equal(pickSubtype(['Holofoil'], null), 'Holofoil');
   assert.equal(pickSubtype(['Unlimited', '1st Edition'], '1st'), '1st Edition');
+});
+
+test('a bare number does not beat a full set number from another game', () => {
+  const magic = buildSearch(1, {
+    updated: '2026-10-25',
+    groups: { 1: ['Oath of the Gatewatch', 'OGW', '2016-01-22'] },
+    products: [[110000, 'Wastes (183) - Full Art', 1, '183', 'Common', 0, 'Normal|Foil']],
+  });
+  const japan = buildSearch(85, {
+    updated: '2026-10-25',
+    groups: { 2: ['S12a: VSTAR Universe', 'S12a', '2022-12-02'] },
+    products: [[450000, 'Mew - 183/172', 2, '183/172', 'Art Rare', 0, 'Holofoil']],
+  });
+  const title = 'Mew 183/172 PSA 10 Gem Mint Full Art Holo Art Rare S12a VSTAR Universe JP';
+  assert.equal(searchAll([ix, magic, japan], title)[0].product.productId, 450000);
+  // Even with no language cue, the full 183/172 number wins over Magic's bare 183.
+  assert.equal(searchAll([magic, japan], 'Mew 183/172 Full Art')[0].product.productId, 450000);
 });

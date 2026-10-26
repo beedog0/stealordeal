@@ -87,11 +87,11 @@ const pick = (body) => {
 // Pokémon history (and graded prices for graded listings) from PokemonPriceTracker,
 // when the user has added a key. Never throws: problems come back as `error`.
 async function pptData(product, subtype, grade) {
-  if (product.catId !== 3) return { status: 'unsupported' };
+  if (product.catId !== 3 && product.catId !== 85) return { status: 'unsupported' };
   const key = await getPptKey();
   if (!key) return { status: 'nokey' };
   try {
-    const body = await pptFetch(pptUrl(product.productId, product.sealed, { ebay: Boolean(grade) }), key);
+    const body = await pptFetch(pptUrl(product.productId, product.sealed, { ebay: Boolean(grade), japanese: product.catId === 85 }), key);
     const points = pptHistoryPoints(body, subtype);
     return {
       status: 'ok',
@@ -139,9 +139,9 @@ async function details(catId, productId, subtype, ask, grade = null) {
   };
 }
 
-async function lookup({ title, price }) {
+async function lookup({ title, price, hints }) {
   const indexes = await loadAll();
-  const parsed = parseTitle(title);
+  const parsed = parseTitle(title, hints ?? {});
   const results = searchAll(indexes, parsed, 5);
   const conf = confidence(results);
   if (!results.length) return { confidence: conf, parsed };
