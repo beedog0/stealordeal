@@ -4,6 +4,10 @@ on:
   schedule:
     # TCGCSV refreshes around 20:00 UTC.
     - cron: '30 21 * * *'
+  # Rebuild right away when the catalog list or the build changes.
+  push:
+    branches: [main]
+    paths: ['data.config.json', 'scripts/build-data.mjs', 'scripts/lib.mjs']
   workflow_dispatch:
     inputs:
       backfill_days:
