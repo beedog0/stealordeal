@@ -79,6 +79,11 @@ async function pptFetch(url, key) {
   return JSON.parse(body);
 }
 
+const pick = (body) => {
+  const item = Array.isArray(body?.data) ? body.data[0] : body?.data ?? body;
+  return { priceHistory: item?.priceHistory ?? null, ebay: item?.ebay ?? null };
+};
+
 // Pokémon history (and graded prices for graded listings) from PokemonPriceTracker,
 // when the user has added a key. Never throws: problems come back as `error`.
 async function pptData(product, subtype, grade) {
@@ -180,7 +185,8 @@ const handlers = {
       remaining: res.headers.get('X-RateLimit-Daily-Remaining'),
       historyDays: pptHistoryPoints(body, 'Holofoil').length,
       psa10: pptGradedPrice(body, { company: 'PSA', grade: '10' })?.price ?? null,
-      shape: JSON.stringify(describeShape(body), null, 1).slice(0, 6000),
+      // Only the parts Fairmark reads; the card's other fields would crowd them out.
+      shape: JSON.stringify(describeShape(pick(body)), null, 1).slice(0, 12000),
     };
   },
 
