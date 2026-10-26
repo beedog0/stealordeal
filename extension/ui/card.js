@@ -247,6 +247,9 @@
       if (item.market == null) card.append(h('div', { class: 'fm-note' }, 'Not enough recent sales for a market price.'));
 
       if (item.points?.length >= 2) card.append(chart(item.points, item.stats));
+      else if (item.points?.length === 1) {
+        card.append(h('div', { class: 'fm-note' }, `Price history is tracked daily from ${fmtDate(item.points[0].date)}, so the chart fills in over the coming days.`));
+      }
 
       const alts = (state.alternatives ?? []).filter((a) => a.productId !== item.productId);
       if (alts.length) {

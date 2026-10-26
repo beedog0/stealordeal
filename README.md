@@ -27,13 +27,13 @@ TCGCSV (daily TCGplayer prices) ──► GitHub Actions, daily ──► GitHub
 ```
 
 - `.github/workflows/data.yml` runs every day at 21:30 UTC, after TCGCSV refreshes. `scripts/build-data.mjs` writes a search index per game and one price history file per set, carrying history forward from the previously published files.
-- `scripts/backfill.mjs` rebuilds history from TCGCSV's daily archives. Run it once from the workflow's **Run workflow** button with `backfill_days` set (90 is a good start).
+- `scripts/backfill.mjs` rebuilds history from TCGCSV's daily archives. As of October 2026 TCGCSV has taken the archives down ("temporarily removed due to rising server costs"), so history builds up one day per daily run instead. If the archives return, run the workflow with `backfill_days` set.
 - The extension's service worker downloads the index once every few hours, caches it, and matches listing titles to products (`extension/src/match.js`): card number, name, set and sealed product type.
 
 ## Setup
 
 1. In the repo's **Settings → Pages**, set **Source** to **GitHub Actions**.
-2. In **Actions → Price data → Run workflow**, enter `90` for `backfill_days` and run it. Later runs happen daily on their own.
+2. In **Actions → Price data**, click **Run workflow** once with the defaults. Later runs happen daily on their own.
 3. In Chrome, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and choose the `extension` folder.
 
 ## Development

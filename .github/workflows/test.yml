@@ -24,11 +24,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Backfill a few days of history
-        run: |
-          command -v 7z || sudo apt-get install -y p7zip-full
-          node scripts/backfill.mjs --days 3 --state state
-      - run: node scripts/build-data.mjs --out site --prev-dir state
+      - run: node scripts/build-data.mjs --out site
       - run: node scripts/smoke.mjs site/data
       - run: du -sh site/data site/data/* && ls site/data/3/h | wc -l
         if: always()
