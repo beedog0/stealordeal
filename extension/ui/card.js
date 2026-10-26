@@ -235,7 +235,8 @@
       );
 
       const graded = parsed.grade;
-      if (!graded && !parsed.lot) card.append(dealBlock(item.deal));
+      const deal = !graded && !parsed.lot ? dealBlock(item.deal) : null;
+      if (deal) card.append(deal);
       if (graded) {
         card.append(h('div', { class: 'fm-note' }, `Graded ${graded.company} ${graded.grade}. The market price shown is for an ungraded copy, so graded copies usually sell for more.`));
       } else if (parsed.lot) {
@@ -247,6 +248,9 @@
       if (item.market == null) card.append(h('div', { class: 'fm-note' }, 'Not enough recent sales for a market price.'));
 
       if (item.points?.length >= 2) card.append(chart(item.points, item.stats));
+      else if (item.points?.length === 1) {
+        card.append(h('div', { class: 'fm-note' }, `Price history is tracked daily from ${fmtDate(item.points[0].date)}, so the chart fills in over the coming days.`));
+      }
 
       const alts = (state.alternatives ?? []).filter((a) => a.productId !== item.productId);
       if (alts.length) {
@@ -259,7 +263,10 @@
 
       card.append(
         h('div', { class: 'fm-foot' },
-          h('span', {}, `TCGplayer market · ${item.updated ? fmtDate(item.updated) : ''}`),
+          h('span', {},
+            `TCGplayer market · ${item.updated ? fmtDate(item.updated) : ''}`,
+            item.historySource === 'PokemonPriceTracker' ? h('br') : null,
+            item.historySource === 'PokemonPriceTracker' ? 'History via PokemonPriceTracker' : null),
           h('a', { href: item.url, target: '_blank', rel: 'noopener noreferrer' }, 'View on TCGplayer ↗')),
       );
     }

@@ -3,6 +3,7 @@
 import { DATA_BASE, CATEGORIES } from './src/config.js';
 import { buildSearch, confidence, parseTitle, pickSubtype, searchAll } from './src/match.js';
 import { historyStats, rateDeal, seriesPoints } from './src/price.js';
+import { PPT_BASE, mergePoints, pptHistoryPoints, pptUrl } from './src/ppt.js';
 
 const CACHE = 'fm-data-v1';
 const MAX_AGE = 6 * 3600 * 1000;
@@ -63,6 +64,36 @@ function summary(product, search) {
   };
 }
 
+const getPptKey = () => chrome.storage.local.get('pptKey').then((r) => r.pptKey || null);
+
+// Raw PokemonPriceTracker response for one product, cached for 12 hours.
+// The cache key leaves out the API key, which only ever goes in the request header.
+async function pptFetch(url, key) {
+  const cache = await caches.open(CACHE);
+  const hit = await cache.match(url);
+  if (hit && Date.now() - Number(hit.headers.get('x-fm-fetched') ?? 0) < 12 * 3600 * 1000) return hit.json();
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${key}` } });
+  if (!res.ok) throw new Error(`PokemonPriceTracker HTTP ${res.status}`);
+  const body = await res.text();
+  await cache.put(url, new Response(body, { headers: { 'content-type': 'application/json', 'x-fm-fetched': String(Date.now()) } }));
+  return JSON.parse(body);
+}
+
+// Longer Pokémon history from PokemonPriceTracker when the user has added a key.
+// Any failure falls back to our own daily history.
+async function pptHistory(product, subtype) {
+  if (product.catId !== 3) return null;
+  const key = await getPptKey();
+  if (!key) return null;
+  try {
+    const pts = pptHistoryPoints(await pptFetch(pptUrl(product.productId, product.sealed), key), subtype);
+    return pts.length ? pts : null;
+  } catch (err) {
+    console.warn('Fairmark: history lookup failed', err);
+    return null;
+  }
+}
+
 // Full price details for one product and printing.
 async function details(catId, productId, subtype, ask) {
   const search = await loadSearch(catId);
@@ -72,7 +103,10 @@ async function details(catId, productId, subtype, ask) {
   const chosen = subtype && product.subtypes.includes(subtype) ? subtype : pickSubtype(product.subtypes, null);
   const key = `${productId}|${chosen}`;
   const [market, low, mid] = history.cur?.[key] ?? [null, null, null];
-  const points = seriesPoints(history, key, 90);
+  const ours = seriesPoints(history, key, 90);
+  const extra = await pptHistory(product, chosen);
+  const since = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+  const points = extra ? mergePoints(extra, ours).filter((p) => p.date >= since) : ours;
   const marketPrice = market ?? points.at(-1)?.price ?? null;
   return {
     ...summary(product, search),
@@ -81,6 +115,7 @@ async function details(catId, productId, subtype, ask) {
     low,
     mid,
     updated: history.end ?? search.updated,
+    historySource: extra ? 'PokemonPriceTracker' : 'TCGplayer',
     points,
     stats: historyStats(points),
     deal: rateDeal(ask, marketPrice),
@@ -121,6 +156,13 @@ const handlers = {
   },
   async meta() {
     return getJson(`${DATA_BASE}/meta.json`);
+  },
+  // Checks a PokemonPriceTracker key; returns the credits left today when the API reports them.
+  async testPptKey({ key }) {
+    const res = await fetch(`${PPT_BASE}/sets?limit=1`, { headers: { Authorization: `Bearer ${key}` } });
+    if (res.status === 401) throw new Error('That key was not accepted.');
+    if (!res.ok) throw new Error(`PokemonPriceTracker HTTP ${res.status}`);
+    return { remaining: res.headers.get('X-RateLimit-Daily-Remaining') };
   },
 };
 

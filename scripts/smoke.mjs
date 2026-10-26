@@ -36,6 +36,8 @@ for (const catId of [3, 1]) {
   let histBytes = 0;
   const histFiles = await readdir(histDir);
   for (const f of histFiles) histBytes += (await stat(path.join(histDir, f))).size;
+  const sample = JSON.parse(await readFile(path.join(histDir, histFiles[0]), 'utf8'));
+  log(`history ${catId}/${histFiles[0]}: ${sample.start} to ${sample.end}, ${Object.keys(sample.m).length} series`);
   log(`category ${catId}: ${ix.products.length} products, index ${(size / 1e6).toFixed(1)} MB, ${histFiles.length} history files ${(histBytes / 1e6).toFixed(1)} MB, built in ${(performance.now() - t0).toFixed(0)} ms`);
   indexes.push(ix);
 }

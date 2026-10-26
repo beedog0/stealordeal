@@ -3,22 +3,55 @@
   "name": "Fairmark",
   "version": "0.1.0",
   "description": "See the market price and price history of trading cards and sealed product while you shop, and whether a listing is a steal.",
-  "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "action": {
     "default_popup": "popup/popup.html",
-    "default_icon": { "16": "icons/icon16.png", "32": "icons/icon32.png" }
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
   },
-  "background": { "service_worker": "background.js", "type": "module" },
-  "host_permissions": ["https://beedog0.github.io/*"],
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://beedog0.github.io/*",
+    "https://www.pokemonpricetracker.com/*"
+  ],
   "content_scripts": [
     {
-      "matches": ["https://www.ebay.com/itm/*"],
-      "js": ["ui/card.js", "ui/panel.js", "content/ebay.js"],
+      "matches": [
+        "https://www.ebay.com/itm/*"
+      ],
+      "js": [
+        "ui/card.js",
+        "ui/panel.js",
+        "content/ebay.js"
+      ],
       "run_at": "document_idle"
     },
     {
-      "matches": ["https://www.tcgplayer.com/*"],
-      "js": ["ui/card.js", "ui/panel.js", "content/tcgplayer.js"],
+      "matches": [
+        "https://www.tcgplayer.com/*"
+      ],
+      "js": [
+        "ui/card.js",
+        "ui/panel.js",
+        "content/tcgplayer.js"
+      ],
       "run_at": "document_idle"
     }
   ]

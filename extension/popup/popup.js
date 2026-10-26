@@ -81,6 +81,7 @@ $('q').addEventListener('input', (e) => {
   timer = setTimeout(() => runSearch(e.target.value), 180);
 });
 $('back').addEventListener('click', showList);
+$('settings').addEventListener('click', () => chrome.runtime.openOptionsPage());
 
 send({ type: 'meta' })
   .then((meta) => {
