@@ -6,17 +6,17 @@ A Chrome extension that shows the market price of trading cards and sealed produ
 - **TCGplayer product pages**: a floating card shows the price history and lets you check any price.
 - **Toolbar popup**: search any card or sealed product and type in a price you've been offered, at a card show or on Marketplace for example.
 
-Covers Pokémon and Magic: The Gathering singles and sealed product. Graded cards show the ungraded price with a note.
+Covers Pokémon and Magic: The Gathering singles and sealed product. Graded Pokémon cards (PSA, BGS, CGC and others) are compared with recent eBay sales of the same grade when a PokemonPriceTracker key is set.
 
 ## Deal ratings
 
 | Rating | Asking price vs. market |
 |---|---|
-| Steal | 20% or more under |
-| Good deal | 8–20% under |
-| Fair price | within 8% |
-| Pricey | 8–25% over |
-| Overpaying | more than 25% over |
+| Super good buy | 20% or more under |
+| Good buy | 8–20% under |
+| OK deal | within 8% |
+| Pass | 8–25% over |
+| Super bad | more than 25% over |
 
 The bands live in `extension/src/price.js`.
 

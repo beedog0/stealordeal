@@ -32,5 +32,20 @@ $('test').addEventListener('click', async () => {
   status('Checking…');
   const res = await chrome.runtime.sendMessage({ type: 'testPptKey', key });
   if (!res?.ok) return status(res?.error ?? 'Could not reach PokemonPriceTracker.');
-  status(res.data.remaining ? `The key works. ${res.data.remaining} credits left today.` : 'The key works.');
+  const { remaining, historyDays, psa10, shape } = res.data;
+  status(
+    [
+      'The key works.',
+      historyDays ? `Sample card: ${historyDays} days of history.` : 'Sample card: no history found in the response.',
+      psa10 ? `PSA 10 price: $${psa10.toFixed(2)}.` : 'No PSA 10 price found in the response.',
+      remaining ? `${remaining} credits left today.` : '',
+    ].filter(Boolean).join(' '),
+  );
+  $('shape').value = shape;
+  $('debug').hidden = false;
+  $('debug').open = !historyDays || !psa10;
+});
+
+$('copy').addEventListener('click', () => {
+  navigator.clipboard.writeText($('shape').value).then(() => status('Copied.'));
 });

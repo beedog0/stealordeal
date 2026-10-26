@@ -48,7 +48,7 @@
 
     async function refresh(productId, subtype, catId) {
       try {
-        const item = await send({ type: 'details', productId, subtype, price: state.ask, catId: catId ?? state.item?.catId });
+        const item = await send({ type: 'details', productId, subtype, price: state.ask, catId: catId ?? state.item?.catId, grade: state.parsed?.grade });
         Object.assign(state, { status: item ? 'ready' : 'empty', item });
       } catch (err) {
         Object.assign(state, { status: 'error', message: `Couldn't load prices: ${err.message}` });

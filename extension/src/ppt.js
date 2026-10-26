@@ -5,9 +5,10 @@
 
 export const PPT_BASE = 'https://www.pokemonpricetracker.com/api/v2';
 
-export function pptUrl(productId, sealed, days = 90) {
+// includeEbay adds graded (PSA, BGS, CGC) sold prices for one more credit.
+export function pptUrl(productId, sealed, { days = 90, ebay = false } = {}) {
   const path = sealed ? 'sealed-products' : 'cards';
-  return `${PPT_BASE}/${path}?tcgPlayerId=${productId}&includeHistory=true&days=${days}&limit=1`;
+  return `${PPT_BASE}/${path}?tcgPlayerId=${productId}&includeHistory=true&days=${days}&limit=1${ebay && !sealed ? '&includeEbay=true' : ''}`;
 }
 
 const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -77,8 +78,10 @@ function findSeries(node, depth = 0) {
   return [];
 }
 
+const firstItem = (body) => (Array.isArray(body?.data) ? body.data[0] : body?.data ?? body);
+
 export function pptHistoryPoints(body, subtype) {
-  const item = Array.isArray(body?.data) ? body.data[0] : body?.data ?? body;
+  const item = firstItem(body);
   const history = item?.priceHistory;
   if (!history) return [];
   const variants = history.variants ?? history;
@@ -97,4 +100,49 @@ export function pptHistoryPoints(body, subtype) {
 export function mergePoints(primary, ours) {
   const last = primary.at(-1)?.date ?? '';
   return [...primary, ...ours.filter((p) => p.date > last)];
+}
+
+const AVG_KEYS = ['avg', 'average', 'avgPrice', 'averagePrice', 'median', 'medianPrice', 'market', 'marketPrice', 'price'];
+const COUNT_KEYS = ['count', 'sales', 'salesCount', 'totalSales', 'sold', 'n'];
+
+// Graded sold price from the eBay block, e.g. ebay.psa10.avg for { company: 'PSA', grade: '10' }.
+// Accepts psa10 / PSA 10 / psa_10 / bgs9.5 keys, flat or nested (ebay.psa['10'], ebay.graded.psa10).
+export function pptGradedPrice(body, grade) {
+  const ebay = firstItem(body)?.ebay;
+  if (!ebay || !grade) return null;
+  const want = norm(`${grade.company}${grade.grade}`);
+  const value = (v) => {
+    if (typeof v === 'number') return v > 0 ? { price: v, sales: null } : null;
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+    const price = AVG_KEYS.map((k) => v[k]).find((x) => typeof x === 'number');
+    if (!(price > 0)) return null;
+    return { price, sales: COUNT_KEYS.map((k) => v[k]).find((x) => typeof x === 'number') ?? null };
+  };
+  const walk = (node, path, depth) => {
+    for (const [k, v] of Object.entries(node)) {
+      const p = path + norm(k).replace(/grade/g, '');
+      if (p.endsWith(want)) {
+        const hit = value(v);
+        if (hit) return hit;
+      }
+      if (v && typeof v === 'object' && !Array.isArray(v) && depth < 3) {
+        const hit = walk(v, p, depth + 1);
+        if (hit) return hit;
+      }
+    }
+    return null;
+  };
+  return walk(ebay, '', 0);
+}
+
+// Shape of a response with values trimmed, so a user can share it without sharing data.
+export function describeShape(node, depth = 0) {
+  if (Array.isArray(node)) return node.length ? [`${node.length} items`, describeShape(node[0], depth + 1)] : [];
+  if (node && typeof node === 'object') {
+    if (depth > 6) return '{…}';
+    const out = {};
+    for (const [k, v] of Object.entries(node).slice(0, 25)) out[k] = describeShape(v, depth + 1);
+    return out;
+  }
+  return typeof node === 'string' ? `string(${node.slice(0, 24)})` : node;
 }
