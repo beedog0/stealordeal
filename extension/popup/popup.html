@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Steal or Deal</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body class="sod-root">
+    <main>
+      <header>
+        <h1>Steal or Deal</h1>
+        <span id="updated"></span>
+      </header>
+      <label class="search">
+        <span class="visually-hidden">Search cards and sealed products</span>
+        <input id="q" type="search" placeholder="Search a card or sealed product…" autocomplete="off" autofocus />
+      </label>
+      <p id="hint" class="hint">Try “Charizard ex 199/165” or “Surging Sparks booster box”. On eBay and TCGplayer pages the price card shows up by itself.</p>
+      <ul id="results" class="results"></ul>
+      <section id="detail" hidden>
+        <button id="back" class="back">← Back to results</button>
+        <div id="card"></div>
+      </section>
+    </main>
+    <script src="../ui/card.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,36 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+
+  live-catalog:
+    # Builds the real price data (without publishing it) and checks title matching against it.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/build-data.mjs --out site
+      - run: node scripts/smoke.mjs site/data
+      - run: du -sh site/data site/data/* && ls site/data/3/h | wc -l
+        if: always()
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: site
+          path: site
+          retention-days: 3

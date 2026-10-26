@@ -1,0 +1,8 @@
+{
+  "categories": [
+    { "id": 3, "slug": "pokemon", "name": "Pokémon" },
+    { "id": 1, "slug": "magic", "name": "Magic: The Gathering" }
+  ],
+  "historyDays": 365,
+  "userAgent": "stealordeal-data/0.1 (+https://github.com/beedog0/stealordeal)"
+}

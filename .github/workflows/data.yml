@@ -1,0 +1,58 @@
+name: Price data
+
+on:
+  schedule:
+    # TCGCSV refreshes around 20:00 UTC.
+    - cron: '30 21 * * *'
+  workflow_dispatch:
+    inputs:
+      backfill_days:
+        description: 'Rebuild history from TCGCSV archives for this many days (0 keeps the published history)'
+        default: '0'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Backfill history
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.backfill_days != '0' }}
+        run: |
+          command -v 7z || sudo apt-get install -y p7zip-full
+          node scripts/backfill.mjs --days "${{ inputs.backfill_days }}" --state state
+
+      - name: Build data
+        run: |
+          if [ -d state ]; then
+            node scripts/build-data.mjs --out site --prev-dir state/
+          else
+            node scripts/build-data.mjs --out site --prev-base "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data"
+          fi
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
