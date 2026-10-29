@@ -66,7 +66,7 @@ for (const [title, want, cat, group] of CASES) {
         if (p.parsedNumber && nums.some((n) => n.num === p.parsedNumber.num && (!n.total || n.total === p.parsedNumber.total)) && p.nameTokens.some((t) => parseTitle(title).tokens.includes(t)))
           log(`     same number: ${p.name} (${i.groups[p.groupId]?.name}) [${p.catId}]`);
   }
-  for (const r of res) log(`     ${r.score.toFixed(2)}  ${r.product.name}  (${ix(r).groups[r.product.groupId]?.name})`);
+  if (!ok) for (const r of res) log(`     ${r.score.toFixed(2)}  ${r.product.name}  (${ix(r).groups[r.product.groupId]?.name})`);
 }
 function ix(r) {
   return indexes.find((i) => i.catId === r.product.catId);
