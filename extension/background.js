@@ -3,7 +3,7 @@
 import { DATA_BASE, CATEGORIES } from './src/config.js';
 import { buildSearch, confidence, parseTitle, pickSubtype, searchAll } from './src/match.js';
 import { historyStats, rateDeal, seriesPoints } from './src/price.js';
-import { PPT_BASE, describeShape, mergePoints, pptGradedPrice, pptHistoryPoints, pptUrl } from './src/ppt.js';
+import { PPT_BASE, describeShape, mergePoints, pptGradedHistory, pptGradedPrice, pptHistoryPoints, pptUrl } from './src/ppt.js';
 
 const CACHE = 'fm-data-v1';
 const MAX_AGE = 6 * 3600 * 1000;
@@ -104,6 +104,7 @@ async function pptData(product, subtype, grade) {
       status: 'ok',
       points: points.length ? points : null,
       graded: grade ? pptGradedPrice(body, grade) : null,
+      gradedPoints: grade ? pptGradedHistory(body, grade) : [],
       error: points.length ? null : 'no price history in the response',
     };
   } catch (err) {
@@ -128,6 +129,9 @@ async function details(catId, productId, subtype, ask, grade = null) {
   const points = extra ? mergePoints(extra, ours).filter((p) => p.date >= since) : ours;
   const marketPrice = market ?? points.at(-1)?.price ?? null;
   const graded = grade ? { ...grade, price: ppt.graded?.price ?? null, sales: ppt.graded?.sales ?? null } : null;
+  // Graded listings chart that grade's sold prices; ungraded history is the fallback.
+  const gradedPoints = (ppt.gradedPoints ?? []).filter((p) => p.date >= since);
+  const shown = gradedPoints.length >= 2 ? gradedPoints : points;
   // A graded listing is only rated against sales of the same grade.
   const compareTo = grade ? graded.price : marketPrice;
   return {
@@ -140,8 +144,9 @@ async function details(catId, productId, subtype, ask, grade = null) {
     historySource: extra ? 'PokemonPriceTracker' : 'TCGplayer',
     ppt: { status: ppt.status, error: ppt.error ?? null },
     graded,
-    points,
-    stats: historyStats(points),
+    gradedHistory: shown === gradedPoints,
+    points: shown,
+    stats: historyStats(shown),
     deal: rateDeal(ask, compareTo),
   };
 }

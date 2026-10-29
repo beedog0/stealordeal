@@ -28,7 +28,7 @@ function pickKey(obj, wanted) {
 }
 
 const DATE_KEYS = ['date', 'd', 'day', 'timestamp', 'time', 'recordedAt', 'createdAt'];
-const PRICE_KEYS = ['market', 'marketPrice', 'price', 'value', 'avg', 'average', 'mid'];
+const PRICE_KEYS = ['market', 'marketPrice', 'smartMarketPrice', 'price', 'value', 'avg', 'average', 'averagePrice', 'avgPrice', 'median', 'medianPrice', 'mid'];
 
 function toDate(v) {
   if (v == null) return null;
@@ -102,7 +102,7 @@ export function mergePoints(primary, ours) {
   return [...primary, ...ours.filter((p) => p.date > last)];
 }
 
-const AVG_KEYS = ['avg', 'average', 'avgPrice', 'averagePrice', 'median', 'medianPrice', 'market', 'marketPrice', 'price'];
+const AVG_KEYS = ['smartMarketPrice', 'avg', 'average', 'avgPrice', 'averagePrice', 'median', 'medianPrice', 'market', 'marketPrice', 'price'];
 const COUNT_KEYS = ['count', 'sales', 'salesCount', 'totalSales', 'sold', 'n'];
 
 // Graded sold price from the eBay block, e.g. ebay.psa10.avg for { company: 'PSA', grade: '10' }.
@@ -132,7 +132,32 @@ export function pptGradedPrice(body, grade) {
     }
     return null;
   };
-  return walk(ebay, '', 0);
+  // salesByGrade holds the current figures; priceHistory holds per-day ones, so look there last.
+  const { priceHistory, ...rest } = ebay;
+  return walk(rest.salesByGrade ?? {}, '', 0) ?? walk(rest, '', 0);
+}
+
+// Per-day sold prices for one grade, from ebay.priceHistory.psa10 (documented path)
+// or a nested grade key (ebay.priceHistory.psa['10']).
+export function pptGradedHistory(body, grade) {
+  const history = firstItem(body)?.ebay?.priceHistory;
+  if (!history || typeof history !== 'object' || !grade) return [];
+  const want = norm(`${grade.company}${grade.grade}`);
+  const walk = (node, path, depth) => {
+    for (const [k, v] of Object.entries(node)) {
+      const p = path + norm(k).replace(/grade/g, '');
+      if (p.endsWith(want)) {
+        const pts = findSeries(v);
+        if (pts.length) return pts;
+      }
+      if (v && typeof v === 'object' && !Array.isArray(v) && depth < 2 && want.startsWith(p)) {
+        const pts = walk(v, p, depth + 1);
+        if (pts.length) return pts;
+      }
+    }
+    return [];
+  };
+  return walk(history, '', 0);
 }
 
 // Shape of a response with values trimmed, so a user can share it without sharing data.
