@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { describeShape, mergePoints, pptGradedPrice, pptHistoryPoints, pptUrl } from '../extension/src/ppt.js';
+import { describeShape, mergePoints, pptGradedHistory, pptGradedPrice, pptHistoryPoints, pptUrl } from '../extension/src/ppt.js';
 
 test('builds card and sealed URLs', () => {
   assert.match(pptUrl(517045, false), /\/cards\?tcgPlayerId=517045&includeHistory=true&days=90/);
@@ -68,4 +68,31 @@ test('reads graded eBay prices in several shapes', () => {
 test('describes a response shape without its values', () => {
   const shape = describeShape({ data: [{ name: 'Charizard ex', prices: { market: 1 }, list: [1, 2] }] });
   assert.deepEqual(shape, { data: ['1 items', { name: 'string(Charizard ex)', prices: { market: 1 }, list: ['2 items', 1] }] });
+});
+
+test('reads per-grade eBay history and prefers salesByGrade for the current price', () => {
+  const body = {
+    data: [{
+      ebay: {
+        salesByGrade: { psa10: { count: 42, smartMarketPrice: 189.5, averagePrice: 200 } },
+        priceHistory: {
+          psa10: [
+            { date: '2026-10-01', averagePrice: 170 },
+            { date: '2026-10-08', averagePrice: 180 },
+          ],
+          psa9: { '2026-10-01': { average: 60 } },
+        },
+      },
+    }],
+  };
+  const psa10 = { company: 'PSA', grade: '10' };
+  assert.deepEqual(pptGradedPrice(body, psa10), { price: 189.5, sales: 42 });
+  assert.deepEqual(pptGradedHistory(body, psa10), [
+    { date: '2026-10-01', price: 170 },
+    { date: '2026-10-08', price: 180 },
+  ]);
+  assert.deepEqual(pptGradedHistory(body, { company: 'PSA', grade: '9' }), [{ date: '2026-10-01', price: 60 }]);
+  assert.deepEqual(pptGradedHistory(body, { company: 'CGC', grade: '10' }), []);
+  // psa1 must not pick up psa10.
+  assert.deepEqual(pptGradedHistory(body, { company: 'PSA', grade: '1' }), []);
 });

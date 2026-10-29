@@ -275,7 +275,7 @@
         card.append(h('div', { class: 'fm-note' }, 'Best guess from the listing title. Check that this is the right item.'));
       }
 
-      if (item.points?.length >= 2) card.append(chart(item.points, item.stats, graded ? 'ungraded history' : 'history'));
+      if (item.points?.length >= 2) card.append(chart(item.points, item.stats, !graded ? 'history' : item.gradedHistory ? `${gradeName} sales history` : 'ungraded history'));
       else {
         const more =
           ppt.status === 'nokey' ? ' Add a PokemonPriceTracker key in Settings for 90 days of history now.'

@@ -107,7 +107,7 @@ export function buildSearch(catId, data) {
   }));
   const groups = {};
   for (const [gid, [name, abbr, published]] of Object.entries(data.groups)) {
-    groups[gid] = { name, abbr, published, tokens: [...new Set([...tokens(name), ...tokens(abbr)])] };
+    groups[gid] = { name, abbr, published, nameTokens: tokens(name), tokens: [...new Set([...tokens(name), ...tokens(abbr)])] };
   }
   const byToken = new Map();
   const byNumber = new Map();
@@ -142,6 +142,13 @@ function numberScore(p, numbers) {
   return best;
 }
 
+// Words in set names that say what kind of product it is, not which set.
+const GENERIC_GROUP = new Set(['booster', 'bundle', 'series', 'cards', 'card', 'collection', 'promo', 'promos', 'set']);
+// Releases that reprint cards from a main set, usually with a stamp ("Trick or Trade",
+// "Prize Pack"). Sellers name the original set too, so when the title also names one
+// of these, the reprint is the better match.
+const REPRINT_GROUP = /trick or trade|prize pack|mcdonald|battle academy|holiday calendar|deck exclusives|league|prerelease|staff|first partner/i;
+
 export function scoreProduct(search, p, q, qset) {
   const { idf } = search;
   let nameTotal = 0;
@@ -175,6 +182,10 @@ export function scoreProduct(search, p, q, qset) {
   let score = 6 * (nameHit / nameTotal) + 3 * (queryTotal ? queryHit / queryTotal : 0);
   score += groupTotal ? 2 * (groupHit / groupTotal) : 0;
   score += numberScore(p, q.numbers);
+  if (group && REPRINT_GROUP.test(group.name)) {
+    const distinct = group.nameTokens.filter((t) => !GENERIC_GROUP.has(t) && !/^(19|20)\d\d$/.test(t));
+    if (distinct.length && distinct.every((t) => qset.has(t))) score += 6;
+  }
   // Each extra word in the product name ("Case", "Code Card", "Showcase") is a variant the title didn't ask for.
   score -= 0.6 * Math.min(nameMiss, 4);
   return score;

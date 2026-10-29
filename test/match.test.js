@@ -98,3 +98,22 @@ test('a bare number does not beat a full set number from another game', () => {
   // Even with no language cue, the full 183/172 number wins over Magic's bare 183.
   assert.equal(searchAll([magic, japan], 'Mew 183/172 Full Art')[0].product.productId, 450000);
 });
+
+test('a stamped reprint named in the title beats the original set it also names', () => {
+  const ix2 = buildSearch(3, {
+    updated: '2026-10-28',
+    groups: {
+      1: ['SWSH11: Lost Origin', 'LOR', '2022-09-09'],
+      2: ['Trick or Trade BOOster Bundle 2023', 'TOT23', '2023-09-01'],
+      3: ['Prize Pack Series Cards', 'PPS', '2022-01-01'],
+    },
+    products: [
+      [1, 'Gengar', 1, '066/196', 'Holo Rare', 0, 'Holofoil'],
+      [2, 'Gengar (2022 Copyright Date)', 2, '066/196', 'Holo Rare', 0, 'Holofoil'],
+      [3, 'Gengar - 066/196', 3, '066/196', 'Holo Rare', 0, 'Holofoil'],
+    ],
+  });
+  const best = (t) => search(ix2, t)[0].product.productId;
+  assert.equal(best('2022 Pokemon SWSH Lost Origin Gengar Promos Trick or Trade Holo #066/196 PSA 10'), 2);
+  assert.equal(best('Pokemon Gengar 066/196 Lost Origin Holo Rare NM'), 1);
+});
