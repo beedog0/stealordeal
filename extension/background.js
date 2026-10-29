@@ -45,7 +45,14 @@ function loadSearch(catId) {
   return pending.get(catId);
 }
 
-const loadAll = () => Promise.all(CATEGORIES.map((c) => loadSearch(c.id)));
+// Every catalog that loads. One that's missing (say, a game added to the build
+// but not yet published) shouldn't take the others down with it.
+async function loadAll() {
+  const results = await Promise.allSettled(CATEGORIES.map((c) => loadSearch(c.id)));
+  const loaded = results.filter((r) => r.status === 'fulfilled').map((r) => r.value);
+  if (!loaded.length) throw results[0].reason;
+  return loaded;
+}
 
 function summary(product, search) {
   const g = search.groups[product.groupId];
