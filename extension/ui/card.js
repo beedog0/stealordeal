@@ -49,7 +49,8 @@
 .fm-icon-btn { all: unset; cursor: pointer; color: var(--fm-muted); font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 6px; }
 .fm-icon-btn:hover { background: var(--fm-raised); color: var(--fm-ink); }
 .fm-product { display: flex; gap: 10px; align-items: flex-start; }
-.fm-thumb { width: 52px; height: 52px; object-fit: contain; border-radius: 8px; background: var(--fm-raised); flex: none; }
+.fm-thumb { width: 64px; height: 89px; object-fit: contain; border-radius: 6px; background: var(--fm-raised); flex: none; cursor: zoom-in; }
+.fm-zoom { display: block; width: 100%; max-width: 260px; margin: 10px auto 0; border-radius: 10px; cursor: zoom-out; }
 .fm-name { font-weight: 600; font-size: 14px; line-height: 1.3; margin: 0; }
 .fm-sub { color: var(--fm-muted); font-size: 12px; margin-top: 2px; }
 .fm-select { font: inherit; font-size: 12px; color: var(--fm-ink-2); background: var(--fm-raised); border: 1px solid var(--fm-border); border-radius: 6px; padding: 2px 4px; margin-top: 4px; max-width: 100%; }
@@ -233,7 +234,19 @@
       const { item, parsed = {} } = state;
       const number = item.name.includes(item.number) ? '' : item.number;
       const sub = [item.setName, number, item.sealed ? 'Sealed' : item.rarity].filter(Boolean).join(' · ');
-      const img = h('img', { class: 'fm-thumb', src: item.image, alt: '', loading: 'lazy' });
+      // Click the thumbnail for a large image, to check it against the listing photos.
+      let zoom = null;
+      const toggleZoom = () => {
+        if (zoom) {
+          zoom.remove();
+          zoom = null;
+          return;
+        }
+        zoom = h('img', { class: 'fm-zoom', src: item.image.replace('_200w', '_400w'), alt: item.name, title: 'Click to close', onclick: toggleZoom });
+        zoom.addEventListener('error', () => zoom?.setAttribute('src', item.image), { once: true });
+        img.closest('.fm-product').after(zoom);
+      };
+      const img = h('img', { class: 'fm-thumb', src: item.image, alt: '', loading: 'lazy', title: 'Click to enlarge', onclick: toggleZoom });
       img.addEventListener('error', () => img.remove());
       const subtypeSelect =
         item.subtypes.length > 1
