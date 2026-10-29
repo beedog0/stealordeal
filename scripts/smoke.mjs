@@ -24,10 +24,14 @@ const CASES = [
   ['MTG Sheoldred, the Apocalypse Dominaria United DMU 107 NM', /^Sheoldred, the Apocalypse/],
   ['Magic the Gathering Bloomburrow Play Booster Box Sealed', /^Bloomburrow - Play Booster Display$/],
   ['MTG The One Ring Lord of the Rings LTR 246', /^The One Ring/],
+  // Japanese cards: must land in the Japanese catalog (85), not on a Magic card with the same number.
+  ['Mew 183/172 PSA 10 Gem Mint Full Art Holo Art Rare S12a VSTAR Universe JP', /^Mew\b/, 85],
+  ['POKEMON PIKACHU 001/025 25TH ANNIVERSARY COLLECTION FA 2021 JAPANESE PSA 10', /^Pikachu\b/, 85],
 ];
 
+const config = JSON.parse(await readFile(new URL('../data.config.json', import.meta.url), 'utf8'));
 const indexes = [];
-for (const catId of [3, 1]) {
+for (const { id: catId } of config.categories) {
   const file = path.join(dir, String(catId), 'index.json');
   const { size } = await stat(file);
   const t0 = performance.now();
@@ -43,12 +47,12 @@ for (const catId of [3, 1]) {
 }
 
 let failed = 0;
-for (const [title, want] of CASES) {
+for (const [title, want, cat] of CASES) {
   const t0 = performance.now();
   const res = searchAll(indexes, title, 3);
   const ms = (performance.now() - t0).toFixed(0);
   const got = res[0]?.product;
-  const ok = got && want.test(got.name);
+  const ok = got && want.test(got.name) && (!cat || got.catId === cat);
   if (!ok) failed++;
   log(`${ok ? 'PASS' : 'FAIL'} [${confidence(res)}, ${ms} ms] ${title}`);
   for (const r of res) log(`     ${r.score.toFixed(2)}  ${r.product.name}  (${ix(r).groups[r.product.groupId]?.name})`);

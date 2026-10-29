@@ -33,9 +33,26 @@
     return /pok[eé]mon|mtg|magic the gathering|\d+\/\d+|booster|elite trainer/i.test(title);
   }
 
+  // Game and language from eBay's category and item specifics, which sellers fill
+  // in more reliably than titles ("Game: Pokémon TCG", "Language: Japanese").
+  function readHints() {
+    const specifics = {};
+    for (const row of document.querySelectorAll('.ux-labels-values, [data-testid="ux-labels-values"]')) {
+      const label = row.querySelector('.ux-labels-values__labels')?.textContent.trim().toLowerCase();
+      const value = row.querySelector('.ux-labels-values__values')?.textContent.trim().toLowerCase();
+      if (label && value) specifics[label] = value;
+    }
+    const crumbs = text('nav.breadcrumbs, .seo-breadcrumbs-container, [data-testid="x-breadcrumb"]').toLowerCase();
+    const gameText = `${specifics.game ?? ''} ${specifics.franchise ?? ''} ${crumbs}`;
+    const game = /pok[eé]mon/.test(gameText) ? 'pokemon' : /magic/.test(gameText) ? 'magic' : null;
+    const lang = specifics.language ?? '';
+    const language = /japan/.test(lang) ? 'japanese' : /english/.test(lang) ? 'english' : null;
+    return { game, language };
+  }
+
   const { title, price, currency } = readListing();
   if (!title || !isCardListing(title)) return;
   const isUsd = !currency || currency === 'USD';
   const anchor = document.querySelector('.x-price-section, .x-bin-price, [data-testid="x-price-section"]');
-  FairmarkPanel.show({ title }, { anchor, ask: isUsd ? price : null, askLabel: isUsd ? 'Listing price' : 'Your price (USD)' });
+  FairmarkPanel.show({ title, hints: readHints() }, { anchor, ask: isUsd ? price : null, askLabel: isUsd ? 'Listing price' : 'Your price (USD)' });
 })();

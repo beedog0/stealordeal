@@ -45,7 +45,14 @@ function loadSearch(catId) {
   return pending.get(catId);
 }
 
-const loadAll = () => Promise.all(CATEGORIES.map((c) => loadSearch(c.id)));
+// Every catalog that loads. One that's missing (say, a game added to the build
+// but not yet published) shouldn't take the others down with it.
+async function loadAll() {
+  const results = await Promise.allSettled(CATEGORIES.map((c) => loadSearch(c.id)));
+  const loaded = results.filter((r) => r.status === 'fulfilled').map((r) => r.value);
+  if (!loaded.length) throw results[0].reason;
+  return loaded;
+}
 
 function summary(product, search) {
   const g = search.groups[product.groupId];
@@ -87,11 +94,11 @@ const pick = (body) => {
 // Pokémon history (and graded prices for graded listings) from PokemonPriceTracker,
 // when the user has added a key. Never throws: problems come back as `error`.
 async function pptData(product, subtype, grade) {
-  if (product.catId !== 3) return { status: 'unsupported' };
+  if (product.catId !== 3 && product.catId !== 85) return { status: 'unsupported' };
   const key = await getPptKey();
   if (!key) return { status: 'nokey' };
   try {
-    const body = await pptFetch(pptUrl(product.productId, product.sealed, { ebay: Boolean(grade) }), key);
+    const body = await pptFetch(pptUrl(product.productId, product.sealed, { ebay: Boolean(grade), japanese: product.catId === 85 }), key);
     const points = pptHistoryPoints(body, subtype);
     return {
       status: 'ok',
@@ -139,9 +146,9 @@ async function details(catId, productId, subtype, ask, grade = null) {
   };
 }
 
-async function lookup({ title, price }) {
+async function lookup({ title, price, hints }) {
   const indexes = await loadAll();
-  const parsed = parseTitle(title);
+  const parsed = parseTitle(title, hints ?? {});
   const results = searchAll(indexes, parsed, 5);
   const conf = confidence(results);
   if (!results.length) return { confidence: conf, parsed };
@@ -203,3 +210,21 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
 // Warm the cache so the first lookup is fast.
 chrome.runtime.onInstalled.addListener(() => loadAll().catch(() => {}));
+
+// Unpacked installs reload themselves when build.txt changes on disk, so an
+// updated folder takes effect without a trip to chrome://extensions.
+// Store installs have an update_url and update through Chrome instead.
+if (!('update_url' in chrome.runtime.getManifest())) {
+  const checkBuild = async () => {
+    const res = await fetch(chrome.runtime.getURL('build.txt'), { cache: 'no-store' }).catch(() => null);
+    if (!res?.ok) return;
+    const build = (await res.text()).trim();
+    const { devBuild } = await chrome.storage.local.get('devBuild');
+    if (build === devBuild) return;
+    await chrome.storage.local.set({ devBuild: build });
+    if (devBuild) chrome.runtime.reload();
+  };
+  chrome.alarms.create('dev-reload', { periodInMinutes: 0.5 });
+  chrome.alarms.onAlarm.addListener((a) => a.name === 'dev-reload' && checkBuild());
+  checkBuild();
+}

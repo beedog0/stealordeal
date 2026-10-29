@@ -49,7 +49,26 @@ export function parseNumber(s) {
   return single ? { num: stripZeros(single), total: '' } : null;
 }
 
-export function parseTitle(title) {
+// TCGplayer category ids.
+export const POKEMON = 3;
+export const POKEMON_JP = 85;
+export const MAGIC = 1;
+
+const JAPANESE = /\b(jp|jpn|japan|japanese)\b|[\u3040-\u30ff\u4e00-\u9faf]|\b(s|sv|sm)\d{1,2}[a-z]\b/;
+const POKEMON_WORDS = /pok[eé]mon|pkmn|\b(vstar|vmax|v-union|gx|tag team|trainer gallery|illustration rare|special art rare|sar|chr)\b/;
+const MAGIC_WORDS = /\bmtg\b|magic the gathering|magic: the gathering|planeswalker|\bcommander\b/;
+
+// Which catalogs to search. Page hints (eBay's category and item specifics) beat the title.
+//   hints: { game: 'pokemon' | 'magic' | null, language: 'japanese' | 'english' | null }
+export function gamesFor(lower, hints = {}) {
+  const japanese = hints.language ? hints.language === 'japanese' : JAPANESE.test(lower);
+  const game = hints.game ?? (POKEMON_WORDS.test(lower) ? 'pokemon' : MAGIC_WORDS.test(lower) ? 'magic' : null);
+  if (game === 'pokemon') return japanese ? [POKEMON_JP] : [POKEMON];
+  if (game === 'magic') return [MAGIC];
+  return japanese ? [POKEMON_JP, MAGIC] : null;
+}
+
+export function parseTitle(title, hints = {}) {
   const raw = String(title ?? '');
   const lower = raw.toLowerCase();
   const numbers = [];
@@ -67,11 +86,7 @@ export function parseTitle(title) {
   if (/1st\s*edition/.test(lower)) finish = finish ? `1st ${finish}` : '1st';
 
   const lot = /\b(lot|playset|bundle of|set of)\b|\bx\s?[2-9]\b|\b[2-9]\s?x\b/.test(lower);
-  let game = null;
-  if (/pok[eé]mon|pkmn/.test(lower)) game = 3;
-  else if (/\bmtg\b|magic the gathering/.test(lower)) game = 1;
-
-  return { tokens: tokens(raw), numbers, grade, finish, lot, game };
+  return { tokens: tokens(raw), numbers, grade, finish, lot, games: gamesFor(lower, hints) };
 }
 
 // Build an in-memory search structure from an index.json payload.
@@ -119,7 +134,8 @@ function numberScore(p, numbers) {
   for (const { num, total } of numbers) {
     if (num !== p.parsedNumber.num) continue;
     if (total && p.parsedNumber.total) best = Math.max(best, total === p.parsedNumber.total ? 5 : 1);
-    else best = Math.max(best, 3);
+    // "183/172" in the title vs a product numbered just "183": weak evidence.
+    else best = Math.max(best, total ? 1 : 3);
   }
   return best;
 }
@@ -192,7 +208,7 @@ export function search(searchIndex, q, limit = 5) {
 // Search several categories (one buildSearch result each) and merge.
 export function searchAll(indexes, q, limit = 5) {
   const parsed = typeof q === 'string' ? parseTitle(q) : q;
-  const pool = parsed.game ? indexes.filter((ix) => ix.catId === parsed.game) : indexes;
+  const pool = parsed.games ? indexes.filter((ix) => parsed.games.includes(ix.catId)) : indexes;
   return (pool.length ? pool : indexes)
     .flatMap((ix) => search(ix, parsed, limit))
     .sort((a, b) => b.score - a.score)

@@ -63,7 +63,7 @@
         if (state.status === 'empty') host?.remove(); // A game we don't cover yet.
         return;
       }
-      const res = await send({ type: 'lookup', title: source.title, price: ask });
+      const res = await send({ type: 'lookup', title: source.title, hints: source.hints, price: ask });
       if (!res.item) {
         host?.remove(); // Not a card or sealed product we know: stay out of the way.
         return;

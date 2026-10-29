@@ -6,9 +6,9 @@
 export const PPT_BASE = 'https://www.pokemonpricetracker.com/api/v2';
 
 // includeEbay adds graded (PSA, BGS, CGC) sold prices for one more credit.
-export function pptUrl(productId, sealed, { days = 90, ebay = false } = {}) {
+export function pptUrl(productId, sealed, { days = 90, ebay = false, japanese = false } = {}) {
   const path = sealed ? 'sealed-products' : 'cards';
-  return `${PPT_BASE}/${path}?tcgPlayerId=${productId}&includeHistory=true&days=${days}&limit=1${ebay && !sealed ? '&includeEbay=true' : ''}`;
+  return `${PPT_BASE}/${path}?tcgPlayerId=${productId}&includeHistory=true&days=${days}&limit=1${ebay && !sealed ? '&includeEbay=true' : ''}${japanese ? '&language=japanese' : ''}`;
 }
 
 const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
