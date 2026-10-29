@@ -112,11 +112,15 @@ export function pptGradedPrice(body, grade) {
   if (!ebay || !grade) return null;
   const want = norm(`${grade.company}${grade.grade}`);
   const value = (v) => {
-    if (typeof v === 'number') return v > 0 ? { price: v, sales: null } : null;
+    if (typeof v === 'number') return v > 0 ? { price: v, sales: null, lastSale: null } : null;
     if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
     const price = AVG_KEYS.map((k) => v[k]).find((x) => typeof x === 'number');
     if (!(price > 0)) return null;
-    return { price, sales: COUNT_KEYS.map((k) => v[k]).find((x) => typeof x === 'number') ?? null };
+    return {
+      price,
+      sales: COUNT_KEYS.map((k) => v[k]).find((x) => typeof x === 'number') ?? null,
+      lastSale: toDate(['lastSaleDate', 'lastSale', 'lastSold', 'lastSoldDate'].map((k) => v[k]).find((x) => x != null)),
+    };
   };
   const walk = (node, path, depth) => {
     for (const [k, v] of Object.entries(node)) {
