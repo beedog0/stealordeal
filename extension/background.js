@@ -198,7 +198,50 @@ async function findProduct(productId) {
   return null;
 }
 
+// Hunting mode: rate several search-result listings at once, a few at a time so
+// a page of graded cards doesn't fire a burst of PokemonPriceTracker requests.
+async function hunt(items) {
+  const out = new Array(items.length).fill(null);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      const { title, price, listing } = items[i];
+      try {
+        const res = await lookup({ title, price, listing });
+        const it = res.item;
+        if (!it) continue;
+        const a = it.assessment ?? {};
+        out[i] = {
+          name: it.name,
+          setName: it.setName,
+          number: it.number,
+          image: it.image,
+          grade: it.graded ? `${it.graded.company} ${it.graded.grade}` : null,
+          match: res.confidence,
+          verdict: a.verdict,
+          insufficient: a.insufficient,
+          confidence: a.confidence,
+          reference: a.reference,
+          maxBid: a.maxBid,
+          allIn: a.allIn,
+          pct: a.pct,
+          reason: a.reasons?.[0] ?? null,
+          compsUrl: it.compsUrl,
+        };
+      } catch (err) {
+        out[i] = { error: String(err?.message ?? err) };
+      }
+    }
+  };
+  await Promise.all([worker(), worker(), worker()]);
+  return out;
+}
+
 const handlers = {
+  async hunt({ items }) {
+    return hunt(items.slice(0, 24));
+  },
   async lookup(msg) {
     return lookup(msg);
   },
