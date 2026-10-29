@@ -3,7 +3,7 @@
 //   node scripts/smoke.mjs site/data
 import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { buildSearch, confidence, searchAll } from '../extension/src/match.js';
+import { buildSearch, confidence, parseTitle, searchAll } from '../extension/src/match.js';
 
 const dir = process.argv[2] ?? 'site/data';
 const lines = [];
@@ -26,6 +26,9 @@ const CASES = [
   ['MTG The One Ring Lord of the Rings LTR 246', /^The One Ring/],
   // Japanese cards: must land in the Japanese catalog (85), not on a Magic card with the same number.
   ['Mew 183/172 PSA 10 Gem Mint Full Art Holo Art Rare S12a VSTAR Universe JP', /^Mew\b/, 85],
+  ['2021 POKEMON JAPANESE 25TH ANNIVERSARY COLLECTION #001 FULL ART/PIKACHU PSA 10', /^Pikachu\b/, 85],
+  // Stamped reprints: the stamp set named in the title beats the original set it also names.
+  ['2022 Pokemon SWSH Lost Origin Gengar Promos Trick or Trade Holo #066/196 PSA 10', /^Gengar/, 3, /trick or trade/i],
   ['POKEMON PIKACHU 001/025 25TH ANNIVERSARY COLLECTION FA 2021 JAPANESE PSA 10', /^Pikachu\b/, 85],
 ];
 
@@ -47,14 +50,22 @@ for (const { id: catId } of config.categories) {
 }
 
 let failed = 0;
-for (const [title, want, cat] of CASES) {
+for (const [title, want, cat, group] of CASES) {
   const t0 = performance.now();
-  const res = searchAll(indexes, title, 3);
+  const res = searchAll(indexes, title, 6);
   const ms = (performance.now() - t0).toFixed(0);
   const got = res[0]?.product;
-  const ok = got && want.test(got.name) && (!cat || got.catId === cat);
+  const ok = got && want.test(got.name) && (!cat || got.catId === cat) && (!group || group.test(ix(res[0]).groups[got.groupId]?.name ?? ''));
   if (!ok) failed++;
   log(`${ok ? 'PASS' : 'FAIL'} [${confidence(res)}, ${ms} ms] ${title}`);
+  if (!ok) {
+    // Show every product carrying the title's card number, to see what the right answer looks like.
+    const nums = parseTitle(title).numbers;
+    for (const i of indexes)
+      for (const p of i.products)
+        if (p.parsedNumber && nums.some((n) => n.num === p.parsedNumber.num && (!n.total || n.total === p.parsedNumber.total)) && p.nameTokens.some((t) => parseTitle(title).tokens.includes(t)))
+          log(`     same number: ${p.name} (${i.groups[p.groupId]?.name}) [${p.catId}]`);
+  }
   for (const r of res) log(`     ${r.score.toFixed(2)}  ${r.product.name}  (${ix(r).groups[r.product.groupId]?.name})`);
 }
 function ix(r) {

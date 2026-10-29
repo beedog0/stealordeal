@@ -34,9 +34,11 @@ export function normalize(s) {
 }
 
 export function tokens(s) {
+  // Card numbers (199/165) are matched separately; other slashes ("FULL ART/PIKACHU") separate words.
   return normalize(s)
     .split(' ')
-    .filter((t) => t && !t.includes('/') && !NOISE.has(t));
+    .flatMap((t) => (/^[a-z]{0,5}\d+[a-z]?\/[a-z]{0,5}\d+$/.test(t) ? [] : t.split('/')))
+    .filter((t) => t && !NOISE.has(t));
 }
 
 const stripZeros = (s) => s.replace(/^([a-z]*)0+(?=\d)/, '$1');
