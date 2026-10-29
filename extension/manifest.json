@@ -46,6 +46,16 @@
     },
     {
       "matches": [
+        "https://www.ebay.com/sch/*"
+      ],
+      "js": [
+        "ui/card.js",
+        "content/hunt.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
         "https://www.tcgplayer.com/*"
       ],
       "js": [

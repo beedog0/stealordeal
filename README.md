@@ -10,15 +10,23 @@ Covers Pokémon and Magic: The Gathering singles and sealed product. Graded Pok�
 
 ## Deal ratings
 
-| Rating | Asking price vs. market |
-|---|---|
-| Super good buy | 20% or more under |
-| Good buy | 8–20% under |
-| OK deal | within 8% |
-| Pass | 8–25% over |
-| Super bad | more than 25% over |
+Fairmark rates what you'd really pay: the price plus shipping plus sales tax (rate set in Settings, 8.25% by default), against the market price. Graded listings compare against recent eBay sales of the same grade.
 
-The bands live in `extension/src/price.js`.
+| Rating | All-in cost vs. market |
+|---|---|
+| Strong buy | 20% or more under |
+| Good buy | 8–20% under |
+| Fair price | within 8% |
+| Overpriced | more than 8% over |
+
+Then it adjusts:
+
+- **Falling market:** a Strong or Good buy drops one step when prices fell 15% or more in 30 days, or 25% or more in 90 days.
+- **Confidence:** high, medium or low, from the number and age of graded sales and how sure the title match is. Fewer than 3 graded sales shows "Not enough data" instead of a rating.
+- **Pay at most / Max bid:** `market × (1 − target discount) ÷ (1 + tax rate) − shipping`, the highest price that still leaves you the target discount (10% by default) after shipping and tax.
+- **Auctions** are rated at the current bid and flagged, since bids usually rise before the end.
+
+The formula lives in `assess()` in `extension/src/price.js`.
 
 ## How it works
 

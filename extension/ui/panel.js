@@ -30,7 +30,7 @@
   // source: { title } for a title lookup, or { productId } for a known product.
   async function show(source, { anchor = null, ask = null, askLabel } = {}) {
     const { root, floating } = mount(anchor);
-    const state = { status: 'loading', ask };
+    const state = { status: 'loading', ask, listing: source.listing ?? {} };
     const opts = { floating, askLabel };
     const handlers = {
       close: () => host?.remove(),
@@ -48,7 +48,7 @@
 
     async function refresh(productId, subtype, catId) {
       try {
-        const item = await send({ type: 'details', productId, subtype, price: state.ask, catId: catId ?? state.item?.catId, grade: state.parsed?.grade });
+        const item = await send({ type: 'details', productId, subtype, price: state.ask, catId: catId ?? state.item?.catId, grade: state.parsed?.grade, listing: state.listing, match: state.confidence ?? 'high' });
         Object.assign(state, { status: item ? 'ready' : 'empty', item });
       } catch (err) {
         Object.assign(state, { status: 'error', message: `Couldn't load prices: ${err.message}` });
@@ -63,7 +63,7 @@
         if (state.status === 'empty') host?.remove(); // A game we don't cover yet.
         return;
       }
-      const res = await send({ type: 'lookup', title: source.title, hints: source.hints, price: ask });
+      const res = await send({ type: 'lookup', title: source.title, hints: source.hints, listing: state.listing, price: ask });
       if (!res.item) {
         host?.remove(); // Not a card or sealed product we know: stay out of the way.
         return;

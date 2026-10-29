@@ -2,7 +2,7 @@
 // content scripts and the popup.
 import { DATA_BASE, CATEGORIES } from './src/config.js';
 import { buildSearch, confidence, parseTitle, pickSubtype, searchAll } from './src/match.js';
-import { historyStats, rateDeal, seriesPoints } from './src/price.js';
+import { DEFAULT_SETTINGS, assess, historyStats, seriesPoints, trendPct } from './src/price.js';
 import { PPT_BASE, describeShape, mergePoints, pptGradedHistory, pptGradedPrice, pptHistoryPoints, pptUrl } from './src/ppt.js';
 
 const CACHE = 'fm-data-v1';
@@ -113,8 +113,23 @@ async function pptData(product, subtype, grade) {
   }
 }
 
+// eBay's sold listings for this exact card, so the user can check the evidence.
+function compsUrl(product, grade) {
+  const name = product.name.replace(/\s+-\s+[^-]*\d[^-]*$/, '');
+  const q = [name, product.number, product.catId === 85 ? 'japanese' : '', grade ? `${grade.company} ${grade.grade}` : '']
+    .filter(Boolean).join(' ');
+  return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(q)}&LH_Sold=1&LH_Complete=1`;
+}
+
+async function getSettings() {
+  const { fmSettings } = await chrome.storage.local.get('fmSettings');
+  return { ...DEFAULT_SETTINGS, ...fmSettings };
+}
+
 // Full price details for one product and printing.
-async function details(catId, productId, subtype, ask, grade = null) {
+//   listing: { shipping, auction } read from the page, when there is one.
+//   match: how sure the title match is ('high' | 'medium' | 'low').
+async function details(catId, productId, subtype, ask, grade = null, listing = {}, match = 'high') {
   const search = await loadSearch(catId);
   const product = search.products[search.byId.get(productId)];
   if (!product) return null;
@@ -132,8 +147,6 @@ async function details(catId, productId, subtype, ask, grade = null) {
   // Graded listings chart that grade's sold prices; ungraded history is the fallback.
   const gradedPoints = (ppt.gradedPoints ?? []).filter((p) => p.date >= since);
   const shown = gradedPoints.length >= 2 ? gradedPoints : points;
-  // A graded listing is only rated against sales of the same grade.
-  const compareTo = grade ? graded.price : marketPrice;
   return {
     ...summary(product, search),
     subtype: chosen,
@@ -147,18 +160,31 @@ async function details(catId, productId, subtype, ask, grade = null) {
     gradedHistory: shown === gradedPoints,
     points: shown,
     stats: historyStats(shown),
-    deal: rateDeal(ask, compareTo),
+    compsUrl: compsUrl(product, grade),
+    // A graded listing is only rated against sales of the same grade.
+    assessment: assess({
+      ...(await getSettings()),
+      price: ask,
+      shipping: listing.shipping ?? null,
+      auction: Boolean(listing.auction),
+      reference: grade
+        ? { price: graded.price, source: 'graded', name: `${grade.company} ${grade.grade}`, label: `${grade.company} ${grade.grade} price`, sales: graded.sales, lastSale: ppt.graded?.lastSale }
+        : { price: marketPrice, source: 'market', label: 'TCGplayer market price' },
+      trend30: trendPct(shown, 30),
+      trend90: trendPct(shown, 90),
+      match,
+    }),
   };
 }
 
-async function lookup({ title, price, hints }) {
+async function lookup({ title, price, hints, listing }) {
   const indexes = await loadAll();
   const parsed = parseTitle(title, hints ?? {});
   const results = searchAll(indexes, parsed, 5);
   const conf = confidence(results);
   if (!results.length) return { confidence: conf, parsed };
   const best = results[0].product;
-  const item = await details(best.catId, best.productId, pickSubtype(best.subtypes, parsed.finish), price, parsed.grade);
+  const item = await details(best.catId, best.productId, pickSubtype(best.subtypes, parsed.finish), price, parsed.grade, listing, conf);
   return {
     confidence: conf,
     parsed,
@@ -172,12 +198,55 @@ async function findProduct(productId) {
   return null;
 }
 
+// Hunting mode: rate several search-result listings at once, a few at a time so
+// a page of graded cards doesn't fire a burst of PokemonPriceTracker requests.
+async function hunt(items) {
+  const out = new Array(items.length).fill(null);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      const { title, price, listing } = items[i];
+      try {
+        const res = await lookup({ title, price, listing });
+        const it = res.item;
+        if (!it) continue;
+        const a = it.assessment ?? {};
+        out[i] = {
+          name: it.name,
+          setName: it.setName,
+          number: it.number,
+          image: it.image,
+          grade: it.graded ? `${it.graded.company} ${it.graded.grade}` : null,
+          match: res.confidence,
+          verdict: a.verdict,
+          insufficient: a.insufficient,
+          confidence: a.confidence,
+          reference: a.reference,
+          maxBid: a.maxBid,
+          allIn: a.allIn,
+          pct: a.pct,
+          reason: a.reasons?.[0] ?? null,
+          compsUrl: it.compsUrl,
+        };
+      } catch (err) {
+        out[i] = { error: String(err?.message ?? err) };
+      }
+    }
+  };
+  await Promise.all([worker(), worker(), worker()]);
+  return out;
+}
+
 const handlers = {
+  async hunt({ items }) {
+    return hunt(items.slice(0, 24));
+  },
   async lookup(msg) {
     return lookup(msg);
   },
-  async details({ catId, productId, subtype, price, grade }) {
-    return details(catId ?? (await findProduct(productId)), productId, subtype, price, grade ?? null);
+  async details({ catId, productId, subtype, price, grade, listing, match }) {
+    return details(catId ?? (await findProduct(productId)), productId, subtype, price, grade ?? null, listing, match);
   },
   async search({ query }) {
     const indexes = await loadAll();
