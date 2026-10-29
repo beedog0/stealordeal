@@ -33,15 +33,34 @@
     return /pok[eé]mon|mtg|magic the gathering|\d+\/\d+|booster|elite trainer/i.test(title);
   }
 
+  // Label/value rows: item specifics ("Game", "Language") and shipping ("Shipping: US $5.25").
+  function readRows() {
+    const rows = {};
+    for (const row of document.querySelectorAll('.ux-labels-values, [data-testid="ux-labels-values"]')) {
+      const label = row.querySelector('.ux-labels-values__labels')?.textContent.trim().toLowerCase().replace(/:$/, '');
+      const value = row.querySelector('.ux-labels-values__values')?.textContent.trim().toLowerCase();
+      if (label && value && !(label in rows)) rows[label] = value;
+    }
+    return rows;
+  }
+
+  // Shipping to the buyer, in USD: 0 for free, null when the page doesn't say (or not in USD).
+  function readShipping(rows) {
+    const value = rows.shipping ?? rows.delivery ?? '';
+    if (/\bfree\b/.test(value)) return 0;
+    const m = value.replace(/,/g, '').match(/(?:us\s*)?\$\s*(\d+(?:\.\d{1,2})?)/);
+    return m ? Number(m[1]) : null;
+  }
+
+  // Auctions show a bid count next to the price; the shown price is the current bid.
+  function isAuction() {
+    if (document.querySelector('.x-bid-count, [data-testid="x-bid-count"], .x-bid-action, [data-testid="x-bid-action"]')) return true;
+    return /\b\d+\s+bids?\b|current bid|starting bid|place bid/i.test(text('.x-price-section, [data-testid="x-price-section"]'));
+  }
+
   // Game and language from eBay's category and item specifics, which sellers fill
   // in more reliably than titles ("Game: Pokémon TCG", "Language: Japanese").
-  function readHints() {
-    const specifics = {};
-    for (const row of document.querySelectorAll('.ux-labels-values, [data-testid="ux-labels-values"]')) {
-      const label = row.querySelector('.ux-labels-values__labels')?.textContent.trim().toLowerCase();
-      const value = row.querySelector('.ux-labels-values__values')?.textContent.trim().toLowerCase();
-      if (label && value) specifics[label] = value;
-    }
+  function readHints(specifics) {
     const crumbs = text('nav.breadcrumbs, .seo-breadcrumbs-container, [data-testid="x-breadcrumb"]').toLowerCase();
     const gameText = `${specifics.game ?? ''} ${specifics.franchise ?? ''} ${crumbs}`;
     const game = /pok[eé]mon/.test(gameText) ? 'pokemon' : /magic/.test(gameText) ? 'magic' : null;
@@ -53,6 +72,12 @@
   const { title, price, currency } = readListing();
   if (!title || !isCardListing(title)) return;
   const isUsd = !currency || currency === 'USD';
+  const rows = readRows();
+  const auction = isAuction();
+  const listing = { shipping: isUsd ? readShipping(rows) : null, auction };
   const anchor = document.querySelector('.x-price-section, .x-bin-price, [data-testid="x-price-section"]');
-  FairmarkPanel.show({ title, hints: readHints() }, { anchor, ask: isUsd ? price : null, askLabel: isUsd ? 'Listing price' : 'Your price (USD)' });
+  FairmarkPanel.show(
+    { title, hints: readHints(rows), listing },
+    { anchor, ask: isUsd ? price : null, askLabel: !isUsd ? 'Your price (USD)' : auction ? 'Current bid' : 'Listing price' },
+  );
 })();

@@ -37,7 +37,7 @@
   }
 }
 .fm-card {
-  box-sizing: border-box; width: 320px; padding: 14px; border-radius: 14px;
+  box-sizing: border-box; width: 340px; padding: 14px; border-radius: 14px;
   background: var(--fm-surface); color: var(--fm-ink); border: 1px solid var(--fm-border);
   font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   text-align: left; letter-spacing: normal;
@@ -49,15 +49,16 @@
 .fm-icon-btn { all: unset; cursor: pointer; color: var(--fm-muted); font-size: 16px; line-height: 1; padding: 2px 6px; border-radius: 6px; }
 .fm-icon-btn:hover { background: var(--fm-raised); color: var(--fm-ink); }
 .fm-product { display: flex; gap: 10px; align-items: flex-start; }
-.fm-thumb { width: 52px; height: 52px; object-fit: contain; border-radius: 8px; background: var(--fm-raised); flex: none; }
+.fm-thumb { width: 64px; height: 89px; object-fit: contain; border-radius: 6px; background: var(--fm-raised); flex: none; cursor: zoom-in; }
+.fm-zoom { display: block; width: 100%; max-width: 260px; margin: 10px auto 0; border-radius: 10px; cursor: zoom-out; }
 .fm-name { font-weight: 600; font-size: 14px; line-height: 1.3; margin: 0; }
 .fm-sub { color: var(--fm-muted); font-size: 12px; margin-top: 2px; }
 .fm-select { font: inherit; font-size: 12px; color: var(--fm-ink-2); background: var(--fm-raised); border: 1px solid var(--fm-border); border-radius: 6px; padding: 2px 4px; margin-top: 4px; max-width: 100%; }
-.fm-prices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.fm-prices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
 .fm-tile { background: var(--fm-raised); border-radius: 10px; padding: 8px 10px; }
 .fm-label { font-size: 11px; color: var(--fm-muted); }
-.fm-value { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 1px; }
-.fm-ask { display: flex; align-items: baseline; gap: 2px; font-size: 20px; font-weight: 700; margin-top: 1px; }
+.fm-value { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 1px; }
+.fm-ask { display: flex; align-items: baseline; gap: 2px; font-size: 17px; font-weight: 700; margin-top: 1px; }
 .fm-ask input { all: unset; width: 100%; font-variant-numeric: tabular-nums; color: var(--fm-ink); border-bottom: 1px dashed var(--fm-border); }
 .fm-ask input:focus { border-bottom-color: var(--fm-line); }
 .fm-verdict { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 12px 14px; border-radius: 12px; color: var(--fm-fair-ink); background: var(--fm-fair-bg); }
@@ -70,6 +71,15 @@
 .fm-verdict.fair { color: var(--fm-fair-ink); background: var(--fm-fair-bg); }
 .fm-verdict.pricey { color: var(--fm-pricey-ink); background: var(--fm-pricey-bg); }
 .fm-verdict.over { color: var(--fm-over-ink); background: var(--fm-over-bg); }
+.fm-verdict-main { flex: 1; min-width: 0; }
+.fm-conf { display: inline-block; margin-top: 6px; font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; border: 1px solid currentColor; opacity: .85; }
+.fm-tile.fm-key { box-shadow: inset 0 0 0 1px var(--fm-line); }
+.fm-tile.fm-key .fm-value { color: var(--fm-line); }
+.fm-why { margin-top: 8px; background: var(--fm-raised); border-radius: 8px; padding: 7px 10px; }
+.fm-why summary { cursor: pointer; font-size: 12px; font-weight: 600; color: var(--fm-ink-2); }
+.fm-why ul { margin: 6px 0 2px; padding-left: 18px; font-size: 12px; color: var(--fm-ink-2); }
+.fm-why li + li { margin-top: 3px; }
+.fm-links { display: flex; gap: 10px; flex: none; white-space: nowrap; }
 .fm-verdict.none .fm-verdict-label { font-size: 15px; font-weight: 700; color: var(--fm-ink-2); }
 .fm-verdict.none .fm-verdict-icon { background: var(--fm-border); }
 .fm-value-sub { font-size: 11px; color: var(--fm-muted); margin-top: 1px; font-variant-numeric: tabular-nums; }
@@ -94,7 +104,8 @@
 @media (prefers-reduced-motion: reduce) { .fm-skel { animation: none; } }
 `;
 
-  const DEAL_ICON = { steal: '★', good: '✓', fair: '≈', pricey: '!', over: '✕', none: '?' };
+  const DEAL_ICON = { steal: '★', good: '✓', fair: '≈', over: '✕', none: '?' };
+  const CONF_LABEL = { high: 'High confidence', medium: 'Medium confidence', low: 'Low confidence' };
 
   const usd = (n) =>
     n == null ? '—' : `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -185,21 +196,24 @@
     return wrap;
   }
 
-  // The headline: a colored verdict, or a neutral line saying why there isn't one.
-  function verdict(deal, against, why) {
-    if (!deal) {
+  // The headline: a colored verdict with its confidence, or a neutral line saying why there isn't one.
+  function verdict(a, why) {
+    if (!a?.verdict) {
+      const label = why ?? (a?.insufficient ? 'Not enough data' : 'No rating');
+      const sub = !why && a?.insufficient ? `${a.insufficient}, so there's no reliable price to compare with.` : null;
       return h('div', { class: 'fm-verdict none', role: 'status' },
         h('div', { class: 'fm-verdict-icon', 'aria-hidden': 'true' }, h('span', {}, DEAL_ICON.none)),
-        h('div', {}, h('div', { class: 'fm-verdict-label' }, why)));
+        h('div', { class: 'fm-verdict-main' }, h('div', { class: 'fm-verdict-label' }, label), sub ? h('div', { class: 'fm-verdict-sub' }, sub) : null));
     }
-    const pct = Math.abs(deal.pct);
-    const sub =
-      pct < 0.5
-        ? `Right at ${against}`
-        : `${usd(Math.abs(deal.diff))} ${deal.pct < 0 ? 'under' : 'over'} ${against} (${pct >= 1000 ? `${(deal.pct / 100 + 1).toFixed(0)}×` : `${pct.toFixed(0)}%`})`;
-    return h('div', { class: `fm-verdict ${deal.key}`, role: 'status' },
-      h('div', { class: 'fm-verdict-icon', 'aria-hidden': 'true' }, h('span', {}, DEAL_ICON[deal.key])),
-      h('div', {}, h('div', { class: 'fm-verdict-label' }, deal.label), h('div', { class: 'fm-verdict-sub' }, sub)));
+    const pct = Math.abs(a.pct);
+    const gap = pct < 0.5 ? 'right at market' : `${usd(Math.abs(a.diff))} ${a.pct < 0 ? 'under' : 'over'} market (${pct >= 1000 ? `${(a.pct / 100 + 1).toFixed(0)}×` : `${pct.toFixed(0)}%`})`;
+    const sub = a.auction ? `At the current bid: all-in ${gap}` : `All-in ${gap}`;
+    return h('div', { class: `fm-verdict ${a.verdict.key}`, role: 'status' },
+      h('div', { class: 'fm-verdict-icon', 'aria-hidden': 'true' }, h('span', {}, DEAL_ICON[a.verdict.key])),
+      h('div', { class: 'fm-verdict-main' },
+        h('div', { class: 'fm-verdict-label' }, a.auction ? `${a.verdict.label} so far` : a.verdict.label),
+        h('div', { class: 'fm-verdict-sub' }, sub),
+        a.confidence ? h('span', { class: 'fm-conf', title: 'How much the market price can be trusted: number and age of sales, and how sure the card match is.' }, CONF_LABEL[a.confidence]) : null));
   }
 
   // state: { status: 'loading' | 'error' | 'empty' | 'ready', item, alternatives, confidence, parsed, ask, message }
@@ -220,7 +234,19 @@
       const { item, parsed = {} } = state;
       const number = item.name.includes(item.number) ? '' : item.number;
       const sub = [item.setName, number, item.sealed ? 'Sealed' : item.rarity].filter(Boolean).join(' · ');
-      const img = h('img', { class: 'fm-thumb', src: item.image, alt: '', loading: 'lazy' });
+      // Click the thumbnail for a large image, to check it against the listing photos.
+      let zoom = null;
+      const toggleZoom = () => {
+        if (zoom) {
+          zoom.remove();
+          zoom = null;
+          return;
+        }
+        zoom = h('img', { class: 'fm-zoom', src: item.image.replace('_200w', '_400w'), alt: item.name, title: 'Click to close', onclick: toggleZoom });
+        zoom.addEventListener('error', () => zoom?.setAttribute('src', item.image), { once: true });
+        img.closest('.fm-product').after(zoom);
+      };
+      const img = h('img', { class: 'fm-thumb', src: item.image, alt: '', loading: 'lazy', title: 'Click to enlarge', onclick: toggleZoom });
       img.addEventListener('error', () => img.remove());
       const subtypeSelect =
         item.subtypes.length > 1
@@ -238,30 +264,39 @@
 
       const graded = item.graded ?? parsed.grade ?? null;
       const gradeName = graded ? `${graded.company} ${graded.grade}` : '';
+      const a = item.assessment ?? {};
       const reference = graded ? graded.price ?? null : item.market;
 
       let why = null;
       if (parsed.lot) why = 'Lot or multiple copies';
-      else if (graded && reference == null) why = `No ${gradeName} price yet`;
-      else if (reference == null) why = 'No market price yet';
-      else if (!state.ask) why = 'Enter a price to rate it';
-      card.append(verdict(why ? null : item.deal, graded ? `${gradeName} price` : 'market', why));
+      else if (!a.insufficient && reference != null && !state.ask) why = 'Enter a price to rate it';
+      card.append(verdict(why ? null : a, why));
 
-      const input = h('input', { type: 'text', inputmode: 'decimal', placeholder: '0.00', 'aria-label': 'Your price in US dollars', value: state.ask ? Number(state.ask).toFixed(2) : '' });
+      const input = h('input', { type: 'text', inputmode: 'decimal', placeholder: '0.00', 'aria-label': 'Price in US dollars', value: state.ask ? Number(state.ask).toFixed(2) : '' });
       input.addEventListener('change', () => on.ask?.(Number(input.value.replace(/[^0-9.]/g, '')) || null));
+      const costParts = [
+        a.shipping == null ? 'shipping unknown' : a.shipping === 0 ? 'free shipping' : `${usd(a.shipping)} shipping`,
+        `${usd(a.tax)} tax (${a.taxRate}%)`,
+      ];
       card.append(
         h('div', { class: 'fm-prices' },
           h('div', { class: 'fm-tile' },
-            h('div', { class: 'fm-label' }, graded ? `${gradeName} price` : 'Market price'),
+            h('div', { class: 'fm-label' }, opts.askLabel ?? 'Your price'),
+            h('div', { class: 'fm-ask' }, '$', input),
+            a.allIn ? h('div', { class: 'fm-value-sub', title: `Price + ${costParts.join(' + ')}` }, `All-in ${usd(a.allIn)}`) : null),
+          h('div', { class: 'fm-tile' },
+            h('div', { class: 'fm-label' }, graded ? `${gradeName} market` : 'Market'),
             h('div', { class: 'fm-value' }, usd(reference)),
-            graded ? h('div', { class: 'fm-value-sub' }, `Ungraded ${usd(item.market)}`) : null),
-          h('div', { class: 'fm-tile' }, h('div', { class: 'fm-label' }, opts.askLabel ?? 'Your price'), h('div', { class: 'fm-ask' }, '$', input))),
+            h('div', { class: 'fm-value-sub' }, graded ? `Ungraded ${usd(item.market)}` : 'TCGplayer')),
+          h('div', { class: 'fm-tile fm-key', title: `The most you can ${a.auction ? 'bid' : 'pay'} and still be ${a.discount}% under market after shipping and tax. Change the target in Settings.` },
+            h('div', { class: 'fm-label' }, a.auction ? 'Max bid' : 'Pay at most'),
+            h('div', { class: 'fm-value' }, usd(a.maxBid)),
+            h('div', { class: 'fm-value-sub' }, `${a.discount ?? 10}% under`))),
       );
+      if (a.allIn) card.append(h('div', { class: 'fm-value-sub', style: 'margin-top:4px' }, `All-in = price + ${costParts.join(' + ')}`));
 
       const ppt = item.ppt ?? {};
-      if (graded && reference != null) {
-        card.append(h('div', { class: 'fm-note' }, `Compared with recent ${gradeName} eBay sales${graded.sales ? ` (${graded.sales} sold)` : ''}.`));
-      } else if (graded) {
+      if (graded && reference == null) {
         const reason =
           ppt.status === 'nokey' ? `Add a PokemonPriceTracker key in Settings to compare with ${gradeName} sales.`
           : ppt.status === 'unsupported' ? 'Graded prices are only available for Pokémon so far.'
@@ -271,8 +306,8 @@
       } else if (parsed.lot) {
         card.append(h('div', { class: 'fm-note' }, 'This looks like a lot or multiple copies, so compare against the market price times the quantity.'));
       }
-      if (state.confidence === 'low' || state.confidence === 'medium') {
-        card.append(h('div', { class: 'fm-note' }, 'Best guess from the listing title. Check that this is the right item.'));
+      if (a.reasons?.length) {
+        card.append(h('details', { class: 'fm-why' }, h('summary', {}, 'Why this rating?'), h('ul', {}, a.reasons.map((r) => h('li', {}, r)))));
       }
 
       if (item.points?.length >= 2) card.append(chart(item.points, item.stats, !graded ? 'history' : item.gradedHistory ? `${gradeName} sales history` : 'ungraded history'));
@@ -300,7 +335,9 @@
             `TCGplayer market · ${item.updated ? fmtDate(item.updated) : ''}`,
             item.historySource === 'PokemonPriceTracker' ? h('br') : null,
             item.historySource === 'PokemonPriceTracker' ? 'History via PokemonPriceTracker' : null),
-          h('a', { href: item.url, target: '_blank', rel: 'noopener noreferrer' }, 'View on TCGplayer ↗')),
+          h('span', { class: 'fm-links' },
+            item.compsUrl ? h('a', { href: item.compsUrl, target: '_blank', rel: 'noopener noreferrer' }, 'Sold comps ↗') : null,
+            h('a', { href: item.url, target: '_blank', rel: 'noopener noreferrer' }, 'TCGplayer ↗'))),
       );
     }
     root.replaceChildren(card);
