@@ -25,7 +25,8 @@
     "type": "module"
   },
   "permissions": [
-    "storage"
+    "storage",
+    "alarms"
   ],
   "host_permissions": [
     "https://beedog0.github.io/*",

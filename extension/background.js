@@ -203,3 +203,21 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
 // Warm the cache so the first lookup is fast.
 chrome.runtime.onInstalled.addListener(() => loadAll().catch(() => {}));
+
+// Unpacked installs reload themselves when build.txt changes on disk, so an
+// updated folder takes effect without a trip to chrome://extensions.
+// Store installs have an update_url and update through Chrome instead.
+if (!('update_url' in chrome.runtime.getManifest())) {
+  const checkBuild = async () => {
+    const res = await fetch(chrome.runtime.getURL('build.txt'), { cache: 'no-store' }).catch(() => null);
+    if (!res?.ok) return;
+    const build = (await res.text()).trim();
+    const { devBuild } = await chrome.storage.local.get('devBuild');
+    if (build === devBuild) return;
+    await chrome.storage.local.set({ devBuild: build });
+    if (devBuild) chrome.runtime.reload();
+  };
+  chrome.alarms.create('dev-reload', { periodInMinutes: 0.5 });
+  chrome.alarms.onAlarm.addListener((a) => a.name === 'dev-reload' && checkBuild());
+  checkBuild();
+}
