@@ -27,6 +27,14 @@
         <button id="clear">Remove</button>
       </div>
       <p id="status" role="status"></p>
+      <h2 style="font-size:15px;margin-top:22px">Buying</h2>
+      <label for="tax">Sales tax rate (%)</label>
+      <input id="tax" type="number" min="0" max="20" step="0.01" />
+      <label for="discount">Target discount below market (%)</label>
+      <input id="discount" type="number" min="0" max="80" step="1" />
+      <p>Fairmark adds shipping and this tax rate to the listing price to get what you'd really pay. "Pay at most" is the highest price (or bid) that still leaves you this far under market after shipping and tax.</p>
+      <div class="row"><button id="saveBuying" class="primary">Save</button></div>
+      <p id="buyingStatus" role="status" style="min-height:1.4em;font-size:12px;color:var(--fm-muted)"></p>
       <details id="debug" hidden>
         <summary>Response details for troubleshooting</summary>
         <p>The layout of the test response, with no key and no personal data. If history or graded prices don't show up, copy this and send it to whoever maintains Fairmark.</p>

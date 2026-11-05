@@ -46,6 +46,24 @@ $('test').addEventListener('click', async () => {
   $('debug').open = !historyDays || !psa10;
 });
 
+// Buying settings: sales tax and target discount, used for all-in cost and the max price.
+const DEFAULTS = { taxRate: 8.25, discount: 10 };
+chrome.storage.local.get('fmSettings').then(({ fmSettings }) => {
+  const s = { ...DEFAULTS, ...fmSettings };
+  $('tax').value = s.taxRate;
+  $('discount').value = s.discount;
+});
+$('saveBuying').addEventListener('click', async () => {
+  const taxRate = Number($('tax').value);
+  const discount = Number($('discount').value);
+  if (!(taxRate >= 0 && taxRate <= 20) || !(discount >= 0 && discount <= 80)) {
+    $('buyingStatus').textContent = 'Tax must be 0–20% and discount 0–80%.';
+    return;
+  }
+  await chrome.storage.local.set({ fmSettings: { taxRate, discount } });
+  $('buyingStatus').textContent = 'Saved. Refresh a listing to see the new numbers.';
+});
+
 $('copy').addEventListener('click', () => {
   navigator.clipboard.writeText($('shape').value).then(() => status('Copied.'));
 });

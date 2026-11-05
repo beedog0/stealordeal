@@ -57,8 +57,8 @@ test('uses tracker history and appends only newer days of our own', () => {
 
 test('reads graded eBay prices in several shapes', () => {
   const psa10 = { company: 'PSA', grade: '10' };
-  assert.deepEqual(pptGradedPrice({ data: [{ ebay: { psa10: { avg: 450, count: 12 } } }] }, psa10), { price: 450, sales: 12 });
-  assert.deepEqual(pptGradedPrice({ data: [{ ebay: { psa9: { avg: 90 }, psa10: { avg: 450 } } }] }, { company: 'PSA', grade: '9' }), { price: 90, sales: null });
+  assert.deepEqual(pptGradedPrice({ data: [{ ebay: { psa10: { avg: 450, count: 12 } } }] }, psa10), { price: 450, sales: 12, lastSale: null });
+  assert.deepEqual(pptGradedPrice({ data: [{ ebay: { psa9: { avg: 90 }, psa10: { avg: 450 } } }] }, { company: 'PSA', grade: '9' }), { price: 90, sales: null, lastSale: null });
   assert.equal(pptGradedPrice({ data: { ebay: { PSA: { 10: { average: 300 } } } } }, psa10).price, 300);
   assert.equal(pptGradedPrice({ data: [{ ebay: { graded: { bgs_9_5: { median: 120 } } } }] }, { company: 'BGS', grade: '9.5' }).price, 120);
   assert.equal(pptGradedPrice({ data: [{ ebay: { psa10: { avg: 450 } } }] }, { company: 'CGC', grade: '10' }), null);
@@ -86,7 +86,7 @@ test('reads per-grade eBay history and prefers salesByGrade for the current pric
     }],
   };
   const psa10 = { company: 'PSA', grade: '10' };
-  assert.deepEqual(pptGradedPrice(body, psa10), { price: 189.5, sales: 42 });
+  assert.deepEqual(pptGradedPrice(body, psa10), { price: 189.5, sales: 42, lastSale: null });
   assert.deepEqual(pptGradedHistory(body, psa10), [
     { date: '2026-10-01', price: 170 },
     { date: '2026-10-08', price: 180 },
