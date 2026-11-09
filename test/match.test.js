@@ -127,3 +127,8 @@ test('uses the rarity in the title to pick between same-name printings', () => {
   assert.ok(parseTitle('Umbreon SAR').rarity.test('Special Art Rare'));
   assert.ok(!parseTitle('Umbreon SAR').rarity.test('Art Rare'));
 });
+
+test('matches promo numbers whose total is a set code', () => {
+  assert.equal(top('2023 POKEMON JAPANESE SV-P PROMO GYM EVENT CAMPAIGN #120 PIKACHU PSA 10'), 523120);
+  assert.equal(top('Pikachu 120/SV-P Promo Japanese'), 523120);
+});

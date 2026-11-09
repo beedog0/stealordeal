@@ -6,6 +6,8 @@ export const pokemonIndex = {
     23651: ['SV08: Surging Sparks', 'SSP', '2024-11-08'],
     3170: ['SWSH12: Silver Tempest', 'SIT', '2022-11-11'],
     23286: ['SV03: Obsidian Flames', 'OBF', '2023-08-11'],
+    23400: ['SV-P Promotional Cards', 'SV-P', '2023-01-20'],
+    1430: ['Vending Machine cards Series 1 (Blue)', 'VM1', '1998-01-01'],
   },
   products: [
     [517045, 'Charizard ex - 199/165', 23237, '199/165', 'Special Illustration Rare', 0, 'Holofoil'],
@@ -27,6 +29,8 @@ export const pokemonIndex = {
     [283389, 'Silver Tempest Booster Box', 3170, '', '', 1, 'Normal'],
     [509000, 'Charizard ex - 223/197', 23286, '223/197', 'Special Illustration Rare', 0, 'Holofoil'],
     [509001, 'Charizard ex - 125/197', 23286, '125/197', 'Double Rare', 0, 'Holofoil'],
+    [523120, 'Pikachu - 120/SV-P', 23400, '120/SV-P', 'Promo', 0, 'Holofoil'],
+    [143025, 'Pikachu', 1430, '', 'Uncommon', 0, 'Normal'],
     [509100, 'Kyogre - 018/197', 23286, '018/197', 'Rare', 0, 'Holofoil'],
     [509101, 'Kyogre - 210/197', 23286, '210/197', 'Illustration Rare', 0, 'Holofoil'],
   ],

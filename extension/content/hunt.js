@@ -60,13 +60,15 @@
   const unsure = (res) => res?.match === 'low' || res?.lot;
   const verdictKey = (res) => (unsure(res) ? 'none' : res?.verdict?.key ?? 'none');
   const verdictLabel = (res) =>
-    !res ? 'No match' : res.error ? 'Error' : res.lot ? 'Multi-card listing' : unsure(res) ? 'Not sure which card' : res.verdict ? res.verdict.label : res.insufficient ? 'Not enough data' : 'No rating';
+    !res ? 'No match' : res.error ? 'Error' : res.lot ? 'Multi-card listing' : unsure(res) ? 'Not sure which card' : res.suspect ? 'Check the match' : res.verdict ? res.verdict.label : res.insufficient ? 'Not enough data' : 'No rating';
 
   function badgeText(r, res) {
     if (!res || res.error || unsure(res)) return `Fairmark: ${verdictLabel(res)}`;
     const parts = [verdictLabel(res)];
     if (res.reference) parts.push(`Market ${usd(res.reference)}`);
-    if (res.maxBid > 0) parts.push(`${r.auction ? 'Max bid' : 'Pay ≤'} ${usd(res.maxBid)}`);
+    if (res.suspect) {
+      // Market and max price belong to a card that probably isn't this one.
+    } else if (res.maxBid > 0) parts.push(`${r.auction ? 'Max bid' : 'Pay ≤'} ${usd(res.maxBid)}`);
     else if (res.maxBid === 0) parts.push('Not worth it with shipping');
     if (res.match && res.match !== 'high') parts.push('check match');
     return `Fairmark: ${parts.join(' · ')}`;

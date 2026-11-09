@@ -199,8 +199,10 @@
   // The headline: a colored verdict with its confidence, or a neutral line saying why there isn't one.
   function verdict(a, why) {
     if (!a?.verdict) {
-      const label = why ?? (a?.insufficient ? 'Not enough data' : 'No rating');
-      const sub = !why && a?.insufficient ? `${a.insufficient}, so there's no reliable price to compare with.` : null;
+      const label = why ?? (a?.suspect ? 'Check the match' : a?.insufficient ? 'Not enough data' : 'No rating');
+      const sub = why ? null
+        : a?.suspect ? `All-in ${Math.abs(a.pct).toFixed(0)}% under market is too good to be true. This is probably a different card or version.`
+        : a?.insufficient ? `${a.insufficient}, so there's no reliable price to compare with.` : null;
       return h('div', { class: 'fm-verdict none', role: 'status' },
         h('div', { class: 'fm-verdict-icon', 'aria-hidden': 'true' }, h('span', {}, DEAL_ICON.none)),
         h('div', { class: 'fm-verdict-main' }, h('div', { class: 'fm-verdict-label' }, label), sub ? h('div', { class: 'fm-verdict-sub' }, sub) : null));

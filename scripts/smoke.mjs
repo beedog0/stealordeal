@@ -32,6 +32,8 @@ const CASES = [
   ['POKEMON PIKACHU 001/025 25TH ANNIVERSARY COLLECTION FA 2021 JAPANESE PSA 10', /^Pikachu\b/, 85],
   // No number in the title: the rarity ("AR" = Art Rare) picks the printing.
   ['Japanese Pokemon Kyogre Groudon AR M6 PSA 10 2 Card Set', /^Kyogre - 080\/076/, 85],
+  // Promo numbered against a set code ("120/SV-P"), not a vintage Pikachu with no number.
+  ['2023 POKEMON JAPANESE SV-P PROMO GYM EVENT CAMPAIGN #120 PIKACHU PSA 10', /^Pikachu/, 85, /SV-P/i],
 ];
 
 const config = JSON.parse(await readFile(new URL('../data.config.json', import.meta.url), 'utf8'));

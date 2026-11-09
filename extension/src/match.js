@@ -45,7 +45,8 @@ const stripZeros = (s) => s.replace(/^([a-z]*)0+(?=\d)/, '$1');
 
 // "199/165" -> { num: '199', total: '165' }; "TG12/TG30" -> { num: 'tg12', total: 'tg30' }.
 export function parseNumber(s) {
-  const m = String(s ?? '').toLowerCase().match(/([a-z]{0,5}\d{1,4}[a-z]?)\s*\/\s*([a-z]{0,5}\d{1,4})/);
+  // Promo totals can be set codes: "120/SV-P", "SWSH050/S-P".
+  const m = String(s ?? '').toLowerCase().match(/([a-z]{0,5}\d{1,4}[a-z]?)\s*\/\s*([a-z]{0,5}\d{1,4}|[a-z]{1,4}-p)\b/);
   if (m) return { num: stripZeros(m[1]), total: stripZeros(m[2]) };
   const single = String(s ?? '').toLowerCase().trim();
   return single ? { num: stripZeros(single), total: '' } : null;
@@ -74,7 +75,7 @@ export function parseTitle(title, hints = {}) {
   const raw = String(title ?? '');
   const lower = raw.toLowerCase();
   const numbers = [];
-  for (const m of lower.matchAll(/([a-z]{0,5}\d{1,4}[a-z]?)\s*\/\s*([a-z]{0,5}\d{1,4})\b/g)) {
+  for (const m of lower.matchAll(/([a-z]{0,5}\d{1,4}[a-z]?)\s*\/\s*([a-z]{0,5}\d{1,4}|[a-z]{1,4}-p)\b/g)) {
     numbers.push({ num: stripZeros(m[1]), total: stripZeros(m[2]) });
   }
   for (const m of lower.matchAll(/#\s*([a-z]{0,5}\d{1,4}[a-z]?)\b/g)) numbers.push({ num: stripZeros(m[1]), total: '' });

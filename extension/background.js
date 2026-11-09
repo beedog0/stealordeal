@@ -225,6 +225,7 @@ async function hunt(items) {
           grade: it.graded ? `${it.graded.company} ${it.graded.grade}` : null,
           match: res.confidence,
           verdict: a.verdict,
+          suspect: a.suspect,
           insufficient: a.insufficient,
           confidence: a.confidence,
           reference: a.reference,
