@@ -28,6 +28,10 @@ Then it adjusts:
 
 The formula lives in `assess()` in `extension/src/price.js`.
 
+## Search pages
+
+On an eBay search page, **Rate listings** (bottom right) labels up to 24 auctions and Buy It Now listings at a time with a verdict, the market price and the most to pay. Press **Rate** again for the next batch. Listings over your max price are skipped, and low-confidence title matches say "Not sure which card" instead of a verdict. Tick **Rate every search page automatically** to label each search page as it loads, which suits a "Time: newly listed" search you refresh.
+
 ## How it works
 
 ```
