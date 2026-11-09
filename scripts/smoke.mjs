@@ -30,6 +30,8 @@ const CASES = [
   // Stamped reprints: the stamp set named in the title beats the original set it also names.
   ['2022 Pokemon SWSH Lost Origin Gengar Promos Trick or Trade Holo #066/196 PSA 10', /^Gengar/, 3, /trick or trade/i],
   ['POKEMON PIKACHU 001/025 25TH ANNIVERSARY COLLECTION FA 2021 JAPANESE PSA 10', /^Pikachu\b/, 85],
+  // No number in the title: the rarity ("AR" = Art Rare) picks the printing.
+  ['Japanese Pokemon Kyogre Groudon AR M6 PSA 10 2 Card Set', /^Kyogre - 080\/076/, 85],
 ];
 
 const config = JSON.parse(await readFile(new URL('../data.config.json', import.meta.url), 'utf8'));

@@ -268,7 +268,7 @@
       const reference = graded ? graded.price ?? null : item.market;
 
       let why = null;
-      if (parsed.lot) why = 'Lot or multiple copies';
+      if (parsed.lot) why = 'Multi-card listing';
       else if (!a.insufficient && reference != null && !state.ask) why = 'Enter a price to rate it';
       card.append(verdict(why ? null : a, why));
 
@@ -296,6 +296,7 @@
       if (a.allIn) card.append(h('div', { class: 'fm-value-sub', style: 'margin-top:4px' }, `All-in = price + ${costParts.join(' + ')}`));
 
       const ppt = item.ppt ?? {};
+      if (parsed.lot) card.append(h('div', { class: 'fm-note' }, 'This looks like a multi-card listing or several copies. Fairmark matched one card, so compare against the sum of each card\'s price.'));
       if (graded && reference == null) {
         const reason =
           ppt.status === 'nokey' ? `Add a PokemonPriceTracker key in Settings to compare with ${gradeName} sales.`
@@ -303,8 +304,6 @@
           : ppt.status === 'error' ? `Couldn't load graded prices (${ppt.error}).`
           : `No recent ${gradeName} sales found.`;
         card.append(h('div', { class: 'fm-note' }, `${reason} Graded copies usually sell for well above the ungraded price.`));
-      } else if (parsed.lot) {
-        card.append(h('div', { class: 'fm-note' }, 'This looks like a lot or multiple copies, so compare against the market price times the quantity.'));
       }
       if (a.reasons?.length) {
         card.append(h('details', { class: 'fm-why' }, h('summary', {}, 'Why this rating?'), h('ul', {}, a.reasons.map((r) => h('li', {}, r)))));

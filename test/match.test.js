@@ -60,6 +60,8 @@ test('parses grades, finishes and lots', () => {
   assert.equal(parseTitle('Sheoldred Foil DMU').finish, 'foil');
   assert.equal(parseTitle('Pikachu x4 playset').lot, true);
   assert.equal(parseTitle('Pikachu ex 238/191').lot, false);
+  assert.equal(parseTitle('Japanese Pokemon Kyogre Groudon AR M6 PSA 10 2 Card Set').lot, true);
+  assert.equal(parseTitle('Pokemon 151 Booster Bundle 6 packs').lot, false);
   assert.deepEqual(parseTitle('Pokemon Charizard').games, [3]);
   assert.deepEqual(parseTitle('MTG Sheoldred').games, [1]);
   assert.equal(parseTitle('Sheoldred').games, null);
@@ -116,4 +118,12 @@ test('a stamped reprint named in the title beats the original set it also names'
   const best = (t) => search(ix2, t)[0].product.productId;
   assert.equal(best('2022 Pokemon SWSH Lost Origin Gengar Promos Trick or Trade Holo #066/196 PSA 10'), 2);
   assert.equal(best('Pokemon Gengar 066/196 Lost Origin Holo Rare NM'), 1);
+});
+
+test('uses the rarity in the title to pick between same-name printings', () => {
+  assert.equal(top('Kyogre AR Obsidian Flames PSA 10'), 509101);
+  assert.equal(top('Kyogre Illustration Rare Obsidian Flames'), 509101);
+  assert.equal(parseTitle('Charizard Full Art Rare').rarity, null);
+  assert.ok(parseTitle('Umbreon SAR').rarity.test('Special Art Rare'));
+  assert.ok(!parseTitle('Umbreon SAR').rarity.test('Art Rare'));
 });

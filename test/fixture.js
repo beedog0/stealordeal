@@ -27,5 +27,7 @@ export const pokemonIndex = {
     [283389, 'Silver Tempest Booster Box', 3170, '', '', 1, 'Normal'],
     [509000, 'Charizard ex - 223/197', 23286, '223/197', 'Special Illustration Rare', 0, 'Holofoil'],
     [509001, 'Charizard ex - 125/197', 23286, '125/197', 'Double Rare', 0, 'Holofoil'],
+    [509100, 'Kyogre - 018/197', 23286, '018/197', 'Rare', 0, 'Holofoil'],
+    [509101, 'Kyogre - 210/197', 23286, '210/197', 'Illustration Rare', 0, 'Holofoil'],
   ],
 };

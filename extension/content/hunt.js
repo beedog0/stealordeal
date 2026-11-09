@@ -57,10 +57,10 @@
   };
 
   // A low-confidence title match gets no verdict: a wrong card's price would mislead.
-  const unsure = (res) => res?.match === 'low';
+  const unsure = (res) => res?.match === 'low' || res?.lot;
   const verdictKey = (res) => (unsure(res) ? 'none' : res?.verdict?.key ?? 'none');
   const verdictLabel = (res) =>
-    !res ? 'No match' : res.error ? 'Error' : unsure(res) ? 'Not sure which card' : res.verdict ? res.verdict.label : res.insufficient ? 'Not enough data' : 'No rating';
+    !res ? 'No match' : res.error ? 'Error' : res.lot ? 'Multi-card listing' : unsure(res) ? 'Not sure which card' : res.verdict ? res.verdict.label : res.insufficient ? 'Not enough data' : 'No rating';
 
   function badgeText(r, res) {
     if (!res || res.error || unsure(res)) return `Fairmark: ${verdictLabel(res)}`;
@@ -78,7 +78,7 @@
     const [ink, bg] = BADGE[key];
     const b = h('div', {
       class: 'fm-hunt-badge',
-      title: text ? '' : res && !unsure(res) ? [res.name, res.setName, res.grade, res.reason].filter(Boolean).join(' · ') : res ? `Best guess: ${res.name} (${res.setName}). Open the listing to pick the right card.` : 'Fairmark could not match this listing.',
+      title: text ? '' : res && !unsure(res) ? [res.name, res.setName, res.grade, res.reason].filter(Boolean).join(' · ') : res?.lot ? 'This listing has more than one card, so it is not compared with a single card price.' : res ? `Best guess: ${res.name} (${res.setName}). Open the listing to pick the right card.` : 'Fairmark could not match this listing.',
       style: `display:inline-block;margin:4px 0;padding:3px 8px;border-radius:999px;font:600 12px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:${ink};background:${bg};border:1px solid ${ink}33`,
     }, text ?? badgeText(r, res));
     const anchor = r.el.querySelector('.s-item__title, .s-card__title, [role="heading"]');

@@ -207,6 +207,11 @@ async function hunt(items) {
     while (next < items.length) {
       const i = next++;
       const { title, price, listing } = items[i];
+      // A multi-card listing can't be compared with one card's price, so don't spend a lookup on it.
+      if (parseTitle(title).lot) {
+        out[i] = { lot: true };
+        continue;
+      }
       try {
         const res = await lookup({ title, price, listing });
         const it = res.item;
