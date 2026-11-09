@@ -32,6 +32,22 @@ The formula lives in `assess()` in `extension/src/price.js`.
 
 On an eBay search page, **Rate listings** (bottom right) labels up to 24 auctions and Buy It Now listings at a time with a verdict, the market price and the most to pay. Press **Rate** again for the next batch. Listings over your max price are skipped, and low-confidence title matches say "Not sure which card" instead of a verdict. Tick **Rate every search page automatically** to label each search page as it loads, which suits a "Time: newly listed" search you refresh.
 
+## Flip or hold
+
+Every price card has a **Buy / Flip or hold** switch (remembered between pages).
+
+- **Flip profit:** works like a vendor: buy at a target share of market (80% by default), resell at market, and see what's left after the fees and shipping of where you sell. Places to sell, each with fees and an undercut you can edit in Settings → Flipping:
+  - **Facebook / Discord groups** (default): sell at market, PayPal Goods & Services 3.49% + $0.49, buyer pays shipping. The closest thing online to vendor margins.
+  - **eBay**: list 5% under market, 13.25% + $0.30–$0.40 per order, you pay shipping ($1.25 envelope under $20, $5.50 tracked above that and for slabs and sealed).
+  - **TCGplayer**: list 5% under, about 13.25% + $0.30, you pay shipping.
+  - **In person**: market, no fees, no shipping.
+
+  **Worth flipping** means at least $5 profit and paying no more than **Buy under**: your target % of market, lowered further if fees would eat the profit. The card also shows what you'd net in the other places.
+- **Hold or sell:** a lean (Leans hold, Leans sell now, No clear lean) from signals it lists: the card's 30- and 90-day trend, where it sits in its range, how cards of the same type are moving across the catalog, and how old the set is. A sharp spike leans sell; a steady climb, a rising card type the card hasn't caught up with, or old out-of-print sealed leans hold; a set from the last four months leans sell, since new-set prices usually fall while boxes are opened.
+- **Card types:** Pokémon cards are tagged Tag Team, VSTAR, VMAX, V, GX, ex, EX, Mega, Radiant, Gold Star, plus Special Illustration Rare, Illustration Rare, Hyper/Gold, Alternate Art and Trainer Gallery. The daily build writes `data/<category>/trends.json` with each type's median 30-day change across cards worth $3 or more (`extension/src/flip.js`).
+
+This reads past prices; it does not forecast. It can't see reprints, set announcements or a creator video that starts the next wave.
+
 ## How it works
 
 ```

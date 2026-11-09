@@ -64,6 +64,51 @@ $('saveBuying').addEventListener('click', async () => {
   $('buyingStatus').textContent = 'Saved. Refresh a listing to see the new numbers.';
 });
 
+// Flipping settings for the Flip or hold view. Fees and undercut are per venue.
+// Keep the defaults in sync with SELL_VENUES / FLIP_DEFAULTS in src/flip.js.
+const VENUES = {
+  groups: { feeRate: 3.49, undercut: 0 },
+  ebay: { feeRate: 13.25, undercut: 5 },
+  tcgplayer: { feeRate: 13.25, undercut: 5 },
+  inperson: { feeRate: 0, undercut: 0 },
+};
+const FLIP = { venue: 'groups', venues: {}, targetPct: 80, minProfit: 5, shipLow: 1.25, shipHigh: 5.5 };
+const FLIP_NUM = ['targetPct', 'minProfit', 'shipLow', 'shipHigh'];
+let flipSettings = FLIP;
+const venueValues = (v) => ({ ...VENUES[v], ...flipSettings.venues?.[v] });
+const showVenue = () => {
+  const v = venueValues($('venue').value);
+  $('feeRate').value = v.feeRate;
+  $('undercut').value = v.undercut;
+};
+chrome.storage.local.get('fmFlip').then(({ fmFlip }) => {
+  flipSettings = { ...FLIP, ...fmFlip, venues: { ...fmFlip?.venues } };
+  $('venue').value = VENUES[flipSettings.venue] ? flipSettings.venue : 'groups';
+  for (const k of FLIP_NUM) $(k).value = flipSettings[k];
+  showVenue();
+});
+// Switching venue keeps what was typed for the previous one until Save.
+let shownVenue = null;
+$('venue').addEventListener('focus', () => (shownVenue = $('venue').value));
+$('venue').addEventListener('change', () => {
+  if (shownVenue) flipSettings.venues[shownVenue] = { feeRate: Number($('feeRate').value), undercut: Number($('undercut').value) };
+  shownVenue = $('venue').value;
+  showVenue();
+});
+$('saveFlip').addEventListener('click', async () => {
+  const fields = ['feeRate', 'undercut', ...FLIP_NUM];
+  if (fields.some((k) => $(k).value === '' || !(Number($(k).value) >= 0))) {
+    $('flipStatus').textContent = 'Every field needs a number, 0 or more.';
+    return;
+  }
+  const venue = $('venue').value;
+  const fmFlip = { ...flipSettings, venue, venues: { ...flipSettings.venues, [venue]: { feeRate: Number($('feeRate').value), undercut: Number($('undercut').value) } } };
+  for (const k of FLIP_NUM) fmFlip[k] = Number($(k).value);
+  flipSettings = fmFlip;
+  await chrome.storage.local.set({ fmFlip });
+  $('flipStatus').textContent = 'Saved. Refresh a listing to see the new numbers.';
+});
+
 $('copy').addEventListener('click', () => {
   navigator.clipboard.writeText($('shape').value).then(() => status('Copied.'));
 });

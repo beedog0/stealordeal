@@ -35,6 +35,30 @@
       <p>Fairmark adds shipping and this tax rate to the listing price to get what you'd really pay. "Pay at most" is the highest price (or bid) that still leaves you this far under market after shipping and tax.</p>
       <div class="row"><button id="saveBuying" class="primary">Save</button></div>
       <p id="buyingStatus" role="status" style="min-height:1.4em;font-size:12px;color:var(--fm-muted)"></p>
+      <h2 style="font-size:15px;margin-top:22px">Flipping</h2>
+      <label for="venue">Where you sell</label>
+      <select id="venue" style="box-sizing:border-box;width:100%;padding:9px 12px;border-radius:10px;border:1px solid var(--fm-border);background:var(--fm-raised);color:var(--fm-ink);font:inherit">
+        <option value="groups">Facebook / Discord groups (PayPal Goods &amp; Services)</option>
+        <option value="ebay">eBay</option>
+        <option value="tcgplayer">TCGplayer</option>
+        <option value="inperson">In person</option>
+      </select>
+      <label for="feeRate">Fees there (% of the sale)</label>
+      <input id="feeRate" type="number" min="0" max="40" step="0.01" />
+      <label for="undercut">List this far under market to sell (%)</label>
+      <input id="undercut" type="number" min="0" max="50" step="1" />
+      <p>Fees and undercut are kept separately for each place you sell. The card shows your net for the others too, so you can compare.</p>
+      <label for="targetPct">Pay at most this % of market</label>
+      <input id="targetPct" type="number" min="10" max="100" step="1" />
+      <label for="minProfit">Profit that makes a flip worth it ($)</label>
+      <input id="minProfit" type="number" min="0" max="1000" step="1" />
+      <label for="shipLow">Your shipping cost under $20 on eBay/TCGplayer (envelope + toploader)</label>
+      <input id="shipLow" type="number" min="0" max="50" step="0.01" />
+      <label for="shipHigh">Your shipping cost $20 and up, slabs and sealed (tracked)</label>
+      <input id="shipHigh" type="number" min="0" max="100" step="0.01" />
+      <p>Defaults: groups 3.49% + $0.49 with the buyer paying shipping, eBay 13.25% + $0.30–$0.40 per order, TCGplayer about 13.25% + $0.30, in person nothing. Check your own accounts, since rates change.</p>
+      <div class="row"><button id="saveFlip" class="primary">Save</button></div>
+      <p id="flipStatus" role="status" style="min-height:1.4em;font-size:12px;color:var(--fm-muted)"></p>
       <details id="debug" hidden>
         <summary>Response details for troubleshooting</summary>
         <p>The layout of the test response, with no key and no personal data. If history or graded prices don't show up, copy this and send it to whoever maintains Fairmark.</p>
