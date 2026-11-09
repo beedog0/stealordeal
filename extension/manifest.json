@@ -39,6 +39,7 @@
       ],
       "js": [
         "ui/card.js",
+        "ui/sold.js",
         "ui/panel.js",
         "content/ebay.js"
       ],
