@@ -3,6 +3,7 @@
 import { DATA_BASE, CATEGORIES } from './src/config.js';
 import { buildSearch, confidence, parseTitle, pickSubtype, searchAll } from './src/match.js';
 import { DEFAULT_SETTINGS, assess, historyStats, seriesPoints, trendPct } from './src/price.js';
+import { FLIP_DEFAULTS, cardTypes, flip, hold } from './src/flip.js';
 import { PPT_BASE, describeShape, mergePoints, pptGradedHistory, pptGradedPrice, pptHistoryPoints, pptUrl } from './src/ppt.js';
 
 const CACHE = 'fm-data-v1';
@@ -126,6 +127,24 @@ async function getSettings() {
   return { ...DEFAULT_SETTINGS, ...fmSettings };
 }
 
+async function getFlipSettings() {
+  const { fmFlip } = await chrome.storage.local.get('fmFlip');
+  return { ...FLIP_DEFAULTS, ...fmFlip };
+}
+
+// How cards of each type moved across the catalog, from the daily build. Optional:
+// older builds don't have the file, and the card works without it.
+const getTrends = (catId) => getJson(`${DATA_BASE}/${catId}/trends.json`).catch(() => null);
+
+// The most specific of this card's types that the build has a trend for.
+function typeTrendFor(product, trends) {
+  for (const t of cardTypes(product)) {
+    const tr = trends?.types?.[t.key];
+    if (tr) return { ...tr, key: t.key, label: t.label, days: trends.days };
+  }
+  return null;
+}
+
 // Full price details for one product and printing.
 //   listing: { shipping, auction } read from the page, when there is one.
 //   match: how sure the title match is ('high' | 'medium' | 'low').
@@ -147,6 +166,15 @@ async function details(catId, productId, subtype, ask, grade = null, listing = {
   // Graded listings chart that grade's sold prices; ungraded history is the fallback.
   const gradedPoints = (ppt.gradedPoints ?? []).filter((p) => p.date >= since);
   const shown = gradedPoints.length >= 2 ? gradedPoints : points;
+  const stats = historyStats(shown);
+  const trend30 = trendPct(shown, 30);
+  const trend90 = trendPct(shown, 90);
+  const settings = await getSettings();
+  const reference = grade
+    ? { price: graded.price, source: 'graded', name: `${grade.company} ${grade.grade}`, label: `${grade.company} ${grade.grade} price`, sales: graded.sales, lastSale: ppt.graded?.lastSale }
+    : { price: marketPrice, source: 'market', label: 'TCGplayer market price' };
+  const assessment = assess({ ...settings, price: ask, shipping: listing.shipping ?? null, auction: Boolean(listing.auction), reference, trend30, trend90, match });
+  const typeTrend = typeTrendFor({ ...product, catId }, await getTrends(catId));
   return {
     ...summary(product, search),
     subtype: chosen,
@@ -159,21 +187,14 @@ async function details(catId, productId, subtype, ask, grade = null, listing = {
     graded,
     gradedHistory: shown === gradedPoints,
     points: shown,
-    stats: historyStats(shown),
+    stats,
     compsUrl: compsUrl(product, grade),
     // A graded listing is only rated against sales of the same grade.
-    assessment: assess({
-      ...(await getSettings()),
-      price: ask,
-      shipping: listing.shipping ?? null,
-      auction: Boolean(listing.auction),
-      reference: grade
-        ? { price: graded.price, source: 'graded', name: `${grade.company} ${grade.grade}`, label: `${grade.company} ${grade.grade} price`, sales: graded.sales, lastSale: ppt.graded?.lastSale }
-        : { price: marketPrice, source: 'market', label: 'TCGplayer market price' },
-      trend30: trendPct(shown, 30),
-      trend90: trendPct(shown, 90),
-      match,
-    }),
+    assessment,
+    types: cardTypes({ ...product, catId }),
+    // Flip: resell at the same reference the rating uses (that grade's sales for a slab).
+    flip: flip({ allIn: assessment.allIn, resale: reference.price, graded: Boolean(grade), sealed: product.sealed, settings: await getFlipSettings() }),
+    hold: hold({ points: shown, stats, trend30, trend90, typeTrend, setPublished: search.groups[product.groupId]?.published || null, sealed: product.sealed }),
   };
 }
 

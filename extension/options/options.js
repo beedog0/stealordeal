@@ -64,6 +64,28 @@ $('saveBuying').addEventListener('click', async () => {
   $('buyingStatus').textContent = 'Saved. Refresh a listing to see the new numbers.';
 });
 
+// Flipping settings: fees, undercut, shipping and minimum profit for the Flip or hold view.
+const FLIP = { venue: 'ebay', feeRate: 13.25, undercut: 5, shipLow: 1.25, shipHigh: 5.5, minProfit: 5 };
+const FLIP_NUM = ['feeRate', 'undercut', 'shipLow', 'shipHigh', 'minProfit'];
+chrome.storage.local.get('fmFlip').then(({ fmFlip }) => {
+  const s = { ...FLIP, ...fmFlip };
+  $('venue').value = s.venue;
+  for (const k of FLIP_NUM) $(k).value = s[k];
+});
+$('saveFlip').addEventListener('click', async () => {
+  const fmFlip = { venue: $('venue').value };
+  for (const k of FLIP_NUM) {
+    const v = Number($(k).value);
+    if (!(v >= 0) || $(k).value === '') {
+      $('flipStatus').textContent = 'Every field needs a number, 0 or more.';
+      return;
+    }
+    fmFlip[k] = v;
+  }
+  await chrome.storage.local.set({ fmFlip });
+  $('flipStatus').textContent = 'Saved. Refresh a listing to see the new numbers.';
+});
+
 $('copy').addEventListener('click', () => {
   navigator.clipboard.writeText($('shape').value).then(() => status('Copied.'));
 });

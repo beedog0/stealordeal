@@ -7,7 +7,7 @@ on:
   # Rebuild right away when the catalog list or the build changes.
   push:
     branches: [main]
-    paths: ['data.config.json', 'scripts/build-data.mjs', 'scripts/lib.mjs']
+    paths: ['data.config.json', 'scripts/build-data.mjs', 'scripts/lib.mjs', 'extension/src/flip.js']
   workflow_dispatch:
     inputs:
       backfill_days:

@@ -28,6 +28,16 @@ Then it adjusts:
 
 The formula lives in `assess()` in `extension/src/price.js`.
 
+## Flip or hold
+
+Every price card has a **Buy / Flip or hold** switch (remembered between pages).
+
+- **Flip profit:** resell at the market price (the graded price for slabs) less an undercut (5% by default, so it sells), minus selling fees (eBay's 13.25% trading card rate plus $0.30–$0.40 per order by default) and your shipping ($1.25 envelope under $20, $5.50 tracked above that and for slabs and sealed). Profit is that minus your all-in cost. **Worth flipping** needs at least $5 and a 15% return; **Buy under** is the most you can pay all-in and still make it. Every figure is editable in Settings → Flipping.
+- **Hold or sell:** a lean (Leans hold, Leans sell now, No clear lean) from signals it lists: the card's 30- and 90-day trend, where it sits in its range, how cards of the same type are moving across the catalog, and how old the set is. A sharp spike leans sell; a steady climb, a rising card type the card hasn't caught up with, or old out-of-print sealed leans hold; a set from the last four months leans sell, since new-set prices usually fall while boxes are opened.
+- **Card types:** Pokémon cards are tagged Tag Team, VSTAR, VMAX, V, GX, ex, EX, Mega, Radiant, Gold Star, plus Special Illustration Rare, Illustration Rare, Hyper/Gold, Alternate Art and Trainer Gallery. The daily build writes `data/<category>/trends.json` with each type's median 30-day change across cards worth $3 or more (`extension/src/flip.js`).
+
+This reads past prices; it does not forecast. It can't see reprints, set announcements or a creator video that starts the next wave.
+
 ## How it works
 
 ```
