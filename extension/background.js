@@ -3,7 +3,7 @@
 import { DATA_BASE, CATEGORIES } from './src/config.js';
 import { buildSearch, confidence, parseTitle, pickSubtype, searchAll } from './src/match.js';
 import { DEFAULT_SETTINGS, assess, historyStats, seriesPoints, trendPct } from './src/price.js';
-import { FLIP_DEFAULTS, cardTypes, flip, hold } from './src/flip.js';
+import { FLIP_DEFAULTS, cardTypes, flip, flipCompare, hold } from './src/flip.js';
 import { PPT_BASE, describeShape, mergePoints, pptGradedHistory, pptGradedPrice, pptHistoryPoints, pptUrl } from './src/ppt.js';
 
 const CACHE = 'fm-data-v1';
@@ -193,7 +193,10 @@ async function details(catId, productId, subtype, ask, grade = null, listing = {
     assessment,
     types: cardTypes({ ...product, catId }),
     // Flip: resell at the same reference the rating uses (that grade's sales for a slab).
-    flip: flip({ allIn: assessment.allIn, resale: reference.price, graded: Boolean(grade), sealed: product.sealed, settings: await getFlipSettings() }),
+    ...(await (async () => {
+      const input = { allIn: assessment.allIn, resale: reference.price, graded: Boolean(grade), sealed: product.sealed, settings: await getFlipSettings() };
+      return { flip: flip(input), flipCompare: flipCompare(input) };
+    })()),
     hold: hold({ points: shown, stats, trend30, trend90, typeTrend, setPublished: search.groups[product.groupId]?.published || null, sealed: product.sealed }),
   };
 }

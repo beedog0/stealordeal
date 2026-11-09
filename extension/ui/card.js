@@ -254,9 +254,10 @@
       return h('div', { class: 'fm-verdict none', role: 'status' },
         h('div', { class: 'fm-verdict-icon', 'aria-hidden': 'true' }, h('span', {}, DEAL_ICON.none)),
         h('div', { class: 'fm-verdict-main' }, h('div', { class: 'fm-verdict-label' }, label),
-          f ? h('div', { class: 'fm-verdict-sub' }, `Pay ${usd(f.buyUnder)} or less all-in to make ${usd(f.minProfit)}.`) : null));
+          f ? h('div', { class: 'fm-verdict-sub' }, `Pay ${usd(f.buyUnder)} or less all-in (${f.targetPct}% of market) to flip it${f.venueKey === 'inperson' ? ' in person' : f.venueKey === 'groups' ? ' in groups' : ` on ${f.venue}`}.`) : null));
     }
-    const sub = f.profit >= 0 ? `${usd(f.profit)} profit (${f.roi.toFixed(0)}% return) after fees and shipping` : `${usd(-f.profit)} loss after fees and shipping`;
+    const costs = f.ship ? ' after fees and shipping' : f.fees ? ' after fees' : '';
+    const sub = `${f.profit >= 0 ? `${usd(f.profit)} profit (${f.roi.toFixed(0)}% return)` : `${usd(-f.profit)} loss`}${costs}, buying at ${f.pctOfMarket.toFixed(0)}% of market`;
     return h('div', { class: `fm-verdict ${f.verdict.key}`, role: 'status' },
       h('div', { class: 'fm-verdict-icon', 'aria-hidden': 'true' }, h('span', {}, DEAL_ICON[f.verdict.key])),
       h('div', { class: 'fm-verdict-main' }, h('div', { class: 'fm-verdict-label' }, f.verdict.label), h('div', { class: 'fm-verdict-sub' }, sub)));
@@ -358,16 +359,26 @@
           flipVerdict(fwhy ? null : f, fwhy),
           h('div', { class: 'fm-prices' },
             askTile,
-            h('div', { class: 'fm-tile', title: `Selling at ${f?.undercut ?? 5}% under ${graded ? `the ${gradeName} price` : 'market'}, minus ${f?.venue ?? 'eBay'} fees and shipping` },
+            h('div', { class: 'fm-tile', title: `What you'd take home selling ${f?.venue ?? ''}${f?.fees || f?.ship ? ', after fees and shipping' : ''}. Change where you sell in Settings.` },
               h('div', { class: 'fm-label' }, "You'd net"),
               h('div', { class: 'fm-value' }, usd(f?.net)),
-              h('div', { class: 'fm-value-sub' }, `on ${f?.venue ?? 'eBay'}`)),
+              h('div', { class: 'fm-value-sub' }, f?.venueKey === 'inperson' ? 'in person' : f?.venueKey === 'groups' ? 'in FB/Discord groups' : `on ${f?.venue ?? 'eBay'}`)),
             h('div', { class: 'fm-tile fm-key', title: `The most you can pay all-in and still make ${usd(f?.minProfit)}. Change the target in Settings.` },
               h('div', { class: 'fm-label' }, 'Buy under'),
               h('div', { class: 'fm-value' }, usd(f?.buyUnder)),
-              h('div', { class: 'fm-value-sub' }, `${usd(f?.minProfit)} profit`))),
+              h('div', { class: 'fm-value-sub' }, `${f?.targetPct ?? 80}% of market`))),
         );
-        if (f) card.append(h('div', { class: 'fm-value-sub', style: 'margin-top:4px' }, `Sell at ${usd(f.sale)} (${f.undercut}% under) − ${usd(f.fees)} fees − ${usd(f.ship)} shipping = ${usd(f.net)}`));
+        if (f) {
+          const line = f.fees || f.ship
+            ? `Sell ${f.venueKey === 'inperson' ? 'in person' : f.venueKey === 'groups' ? 'in groups' : `on ${f.venue}`} at ${usd(f.sale)}${f.undercut ? ` (${f.undercut}% under)` : ''} − ${usd(f.fees)} fees${f.ship ? ` − ${usd(f.ship)} shipping` : ', buyer pays shipping'} = ${usd(f.net)}`
+            : `Sell ${f.venueKey === 'inperson' ? 'in person' : `in ${f.venue}`} at ${f.undercut ? `${usd(f.sale)}, ${f.undercut}% under market` : `market, ${usd(f.sale)}`}. No fees or shipping.`;
+          card.append(h('div', { class: 'fm-value-sub', style: 'margin-top:4px' }, line));
+          const others = (item.flipCompare ?? []).filter((c) => c.venueKey !== f.venueKey);
+          if (others.length) {
+            card.append(h('div', { class: 'fm-value-sub', style: 'margin-top:2px', title: 'What you would net selling elsewhere. Change where you sell in Settings.' },
+              `Net elsewhere: ${others.map((c) => `${c.venueKey === 'groups' ? 'groups' : c.venue} ${usd(c.net)}`).join(' · ')}`));
+          }
+        }
         card.append(holdBlock(item.hold, item.types));
       } else {
         card.append(

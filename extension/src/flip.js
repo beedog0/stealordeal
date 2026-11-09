@@ -109,43 +109,60 @@ export function typeTrendBuilder(days = 30) {
 
 // ---- Flip profit ----
 
-// eBay's trading card fees (Trading Cards category: 13.25% of the order total up to
-// $7,500, plus a per-order fee). TCGplayer's are 10.75% + 2.5% payment processing + $0.30.
-// Both change from time to time, so every figure is editable in Settings.
+// Where you resell. Facebook and Discord card groups sell near market with PayPal
+// Goods & Services (3.49% + $0.49) and the buyer paying shipping, which is the
+// closest online match to a vendor's margins. eBay's Trading Cards fee is 13.25%
+// of the order total up to $7,500 plus a per-order fee, and you cover shipping.
+// TCGplayer's is about 10.75% + 2.5% payment processing + $0.30. In person has no
+// fees or shipping. Fee rates and the undercut are editable per venue in Settings.
 export const SELL_VENUES = {
-  ebay: { label: 'eBay', feeRate: 13.25, fixed: 0.4, fixedSmall: 0.3 },
-  tcgplayer: { label: 'TCGplayer', feeRate: 13.25, fixed: 0.3, fixedSmall: 0.3 },
+  groups: { label: 'Facebook/Discord groups', feeRate: 3.49, undercut: 0, fixed: 0.49, fixedSmall: 0.49, ships: false },
+  inperson: { label: 'in person', feeRate: 0, undercut: 0, fixed: 0, fixedSmall: 0, ships: false },
+  ebay: { label: 'eBay', feeRate: 13.25, undercut: 5, fixed: 0.4, fixedSmall: 0.3, ships: true },
+  tcgplayer: { label: 'TCGplayer', feeRate: 13.25, undercut: 5, fixed: 0.3, fixedSmall: 0.3, ships: true },
 };
 
 export const FLIP_DEFAULTS = {
-  venue: 'ebay',
-  feeRate: 13.25, // %
+  venue: 'groups',
+  venues: {}, // per-venue overrides: { ebay: { feeRate, undercut } }
   shipLow: 1.25, // plain envelope + toploader, for sales under $20
   shipHigh: 5.5, // tracked bubble mailer, $20 and up (and always for slabs and sealed)
-  undercut: 5, // % below market you list at to sell in reasonable time
   minProfit: 5, // $ profit that makes a flip worth the effort
+  targetPct: 80, // pay at most this % of market, like a vendor buying at 70–85%
 };
 
 // in: { allIn (what you pay), resale (market or graded price), graded, sealed, settings }
 export function flip({ allIn, resale, graded = false, sealed = false, settings = {} }) {
   const s = { ...FLIP_DEFAULTS, ...settings };
   if (!(resale > 0)) return null;
-  const sale = round2(resale * (1 - s.undercut / 100));
-  const venue = SELL_VENUES[s.venue] ?? SELL_VENUES.ebay;
+  const venueKey = SELL_VENUES[s.venue] ? s.venue : FLIP_DEFAULTS.venue;
+  const venue = { ...SELL_VENUES[venueKey], ...s.venues?.[venueKey] };
+  const sale = round2(resale * (1 - venue.undercut / 100));
   const fixed = sale > 10 ? venue.fixed : venue.fixedSmall;
-  const fees = round2(sale * (s.feeRate / 100) + fixed);
-  const ship = graded || sealed || sale >= 20 ? s.shipHigh : s.shipLow;
+  const fees = round2(sale * (venue.feeRate / 100) + fixed);
+  const ship = !venue.ships ? 0 : graded || sealed || sale >= 20 ? s.shipHigh : s.shipLow;
   const net = round2(sale - fees - ship);
-  // The most you can pay all-in and still clear the minimum profit.
-  const buyUnder = Math.max(0, round2(net - s.minProfit));
-  if (!(allIn > 0)) return { sale, fees, ship, net, buyUnder, profit: null, roi: null, verdict: null, venue: venue.label, undercut: s.undercut, minProfit: s.minProfit };
+  // The most you can pay all-in: your target % of market, and never so much that
+  // fees and shipping leave less than the minimum profit.
+  const buyUnder = Math.max(0, round2(Math.min(net - s.minProfit, (resale * s.targetPct) / 100)));
+  const base = { sale, fees, ship, net, buyUnder, venue: venue.label, venueKey, undercut: venue.undercut, minProfit: s.minProfit, targetPct: s.targetPct };
+  if (!(allIn > 0)) return { ...base, profit: null, roi: null, pctOfMarket: null, verdict: null };
   const profit = round2(net - allIn);
   const roi = (profit / allIn) * 100;
+  const pctOfMarket = (allIn / resale) * 100;
   const verdict =
-    profit >= s.minProfit && roi >= 15 ? { key: 'good', label: 'Worth flipping' }
+    profit >= s.minProfit && allIn <= buyUnder + 0.005 ? { key: 'good', label: 'Worth flipping' }
     : profit > 0 ? { key: 'fair', label: 'Thin margin' }
     : { key: 'over', label: 'Not a flip' };
-  return { sale, fees, ship, net, buyUnder, profit, roi, verdict, venue: venue.label, undercut: s.undercut, minProfit: s.minProfit };
+  return { ...base, profit, roi, pctOfMarket, verdict };
+}
+
+// The same card resold everywhere, so you can see which channel leaves the most.
+export function flipCompare(input) {
+  return Object.keys(SELL_VENUES)
+    .map((venue) => flip({ ...input, settings: { ...input.settings, venue } }))
+    .filter(Boolean)
+    .map((f) => ({ venueKey: f.venueKey, venue: f.venue, net: f.net, profit: f.profit }));
 }
 
 // ---- Hold signal ----

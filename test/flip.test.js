@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { cardTypes, flip, hold, seriesChange, typeTrendBuilder } from '../extension/src/flip.js';
+import { cardTypes, flip, flipCompare, hold, seriesChange, typeTrendBuilder } from '../extension/src/flip.js';
 
 const keys = (name, rarity = '', number = '') => cardTypes({ catId: 3, name, rarity, number }).map((t) => t.key);
 
@@ -19,25 +19,44 @@ test('tags Pokémon card types from names and rarities', () => {
   assert.deepEqual(cardTypes({ catId: 3, name: 'Arceus VSTAR Box', sealed: true }), []);
 });
 
-test('flip profit after fees, undercut and shipping', () => {
-  const f = flip({ allIn: 60, resale: 100, settings: { feeRate: 13.25, undercut: 5, shipHigh: 5.5, minProfit: 5 } });
+test('flip profit on eBay after fees, undercut and shipping', () => {
+  const ebay = { venue: 'ebay' };
+  const f = flip({ allIn: 60, resale: 100, settings: ebay });
   assert.equal(f.sale, 95);
   assert.equal(f.fees, 12.99); // 95 × 13.25% + $0.40
   assert.equal(f.ship, 5.5);
   assert.equal(f.net, 76.51);
   assert.equal(f.profit, 16.51);
   assert.equal(f.verdict.key, 'good');
-  assert.equal(f.buyUnder, 71.51);
-  assert.equal(flip({ allIn: 75, resale: 100 }).verdict.key, 'fair');
-  assert.equal(flip({ allIn: 90, resale: 100 }).verdict.key, 'over');
+  assert.equal(f.buyUnder, 71.51); // fees bind before the 80% target
+  assert.equal(flip({ allIn: 75, resale: 100, settings: ebay }).verdict.key, 'fair');
+  assert.equal(flip({ allIn: 90, resale: 100, settings: ebay }).verdict.key, 'over');
   // Cheap cards ship in an envelope; slabs never do.
-  assert.equal(flip({ allIn: 5, resale: 12 }).ship, 1.25);
-  assert.equal(flip({ allIn: 5, resale: 12, graded: true }).ship, 5.5);
-  // No price yet: still says what to pay.
+  assert.equal(flip({ allIn: 5, resale: 12, settings: ebay }).ship, 1.25);
+  assert.equal(flip({ allIn: 5, resale: 12, graded: true, settings: ebay }).ship, 5.5);
+  // Per-venue overrides from Settings.
+  assert.equal(flip({ allIn: 60, resale: 100, settings: { venue: 'ebay', venues: { ebay: { feeRate: 10, undercut: 0 } } } }).fees, 10.4);
+  assert.equal(flip({ allIn: 10, resale: null }), null);
+});
+
+test('groups (the default) work like a vendor: buy at 80% of market, sell at market', () => {
+  const f = flip({ allIn: 80, resale: 100 });
+  assert.equal(f.venueKey, 'groups');
+  assert.equal(f.sale, 100);
+  assert.equal(f.fees, 3.98); // PayPal G&S 3.49% + $0.49
+  assert.equal(f.ship, 0); // buyer pays
+  assert.equal(f.buyUnder, 80);
+  assert.equal(f.profit, 16.02);
+  assert.equal(Math.round(f.pctOfMarket), 80);
+  assert.equal(f.verdict.key, 'good');
+  assert.equal(flip({ allIn: 85, resale: 100 }).verdict.key, 'fair'); // profitable, but over the 80% target
   const none = flip({ allIn: null, resale: 100 });
   assert.equal(none.verdict, null);
-  assert.equal(none.buyUnder, 71.51);
-  assert.equal(flip({ allIn: 10, resale: null }), null);
+  assert.equal(none.buyUnder, 80);
+  assert.equal(flip({ allIn: 80, resale: 100, settings: { venue: 'inperson' } }).net, 100);
+  const cmp = flipCompare({ allIn: 80, resale: 100 });
+  assert.deepEqual(cmp.map((c) => c.venueKey), ['groups', 'inperson', 'ebay', 'tcgplayer']);
+  assert.equal(cmp.find((c) => c.venueKey === 'ebay').net, 76.51);
 });
 
 const now = Date.parse('2026-11-09');
