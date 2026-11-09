@@ -9,6 +9,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
+import { typeTrendBuilder } from '../extension/src/flip.js';
 import { TCGCSV, fetchJson, indexRow, loadConfig, mergeHistory, results, snapshot } from './lib.mjs';
 
 const { values: args } = parseArgs({
@@ -52,6 +53,7 @@ for (const cat of config.categories) {
   const groups = results(await fetchJson(`${TCGCSV}/${cat.id}/groups`, { userAgent: ua }));
   const groupInfo = {};
   const rows = [];
+  const trends = typeTrendBuilder(30);
   let priced = 0;
   for (const g of groups) {
     groupInfo[g.groupId] = [g.name, g.abbreviation ?? '', (g.publishedOn ?? '').slice(0, 10)];
@@ -62,15 +64,26 @@ for (const cat of config.categories) {
       if (!subtypes.has(p.productId)) subtypes.set(p.productId, []);
       subtypes.get(p.productId).push(p.subTypeName);
     }
+    const groupRows = [];
     for (const product of products) {
       if (!subtypes.has(product.productId)) continue;
-      rows.push(indexRow(product, subtypes.get(product.productId)));
+      groupRows.push(indexRow(product, subtypes.get(product.productId)));
     }
+    rows.push(...groupRows);
     const history = mergeHistory(await loadPrev(cat.id, g.groupId), date, snapshot(prices), config.historyDays);
+    // Card-type trends (VSTAR, Tag Team, Illustration Rare…) across the whole catalog.
+    for (const [productId, name, , number, rarity, sealed, subs] of groupRows) {
+      const card = { catId: cat.id, name, number, rarity, sealed: Boolean(sealed) };
+      for (const st of subs.split('|')) {
+        const key = `${productId}|${st}`;
+        trends.add(card, history.m[key], history.cur?.[key]?.[0]);
+      }
+    }
     await writeJson(path.join(dataDir, String(cat.id), 'h', `${g.groupId}.json`), history);
     priced += prices.length;
   }
   await writeJson(path.join(dataDir, String(cat.id), 'index.json'), { updated: date, groups: groupInfo, products: rows });
+  await writeJson(path.join(dataDir, String(cat.id), 'trends.json'), { updated: date, ...trends.result() });
   meta.categories.push({ id: cat.id, slug: cat.slug, name: cat.name, products: rows.length });
   console.log(`${cat.name}: ${groups.length} sets, ${rows.length} products, ${priced} prices`);
 }

@@ -99,12 +99,44 @@
 .fm-alt:hover { background: var(--fm-raised); }
 .fm-alt span { color: var(--fm-muted); }
 .fm-empty { color: var(--fm-ink-2); font-size: 13px; padding: 6px 0; }
+.fm-mode { display: flex; gap: 2px; margin-top: 10px; padding: 2px; border-radius: 9px; background: var(--fm-raised); }
+.fm-mode button { all: unset; flex: 1; text-align: center; cursor: pointer; font-size: 12px; font-weight: 600; padding: 4px 0; border-radius: 7px; color: var(--fm-muted); }
+.fm-mode button[aria-pressed="true"] { background: var(--fm-surface); color: var(--fm-ink); box-shadow: 0 1px 2px rgba(16, 24, 40, 0.12); }
+.fm-mode button:focus-visible { outline: 2px solid var(--fm-line); }
+.fm-hold { margin-top: 8px; background: var(--fm-raised); border-radius: 8px; padding: 8px 10px; }
+.fm-hold-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 600; color: var(--fm-ink-2); }
+.fm-lean { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; color: var(--fm-fair-ink); background: var(--fm-fair-bg); white-space: nowrap; }
+.fm-lean.hold { color: var(--fm-steal-ink); background: var(--fm-steal-bg); }
+.fm-lean.sell { color: var(--fm-pricey-ink); background: var(--fm-pricey-bg); }
+.fm-hold ul { margin: 6px 0 2px; padding-left: 18px; font-size: 12px; color: var(--fm-ink-2); }
+.fm-hold li + li { margin-top: 3px; }
+.fm-hold .fm-caveat { margin-top: 6px; font-size: 11px; color: var(--fm-muted); }
+.fm-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.fm-tag { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--fm-border); color: var(--fm-ink-2); }
 .fm-skel { height: 12px; border-radius: 6px; background: var(--fm-raised); margin: 8px 0; animation: fm-pulse 1.2s ease-in-out infinite; }
 @keyframes fm-pulse { 50% { opacity: .5; } }
 @media (prefers-reduced-motion: reduce) { .fm-skel { animation: none; } }
 `;
 
+  // Buy or Flip view, remembered across pages.
+  let mode = 'buy';
+  const redraws = new Set();
+  try {
+    chrome.storage?.local.get('fmMode').then(({ fmMode }) => {
+      if (fmMode === 'flip' || fmMode === 'buy') {
+        mode = fmMode;
+        redraws.forEach((f) => f());
+      }
+    });
+  } catch {}
+  function setMode(m) {
+    mode = m;
+    try { chrome.storage?.local.set({ fmMode: m }); } catch {}
+    redraws.forEach((f) => f());
+  }
+
   const DEAL_ICON = { steal: '★', good: '✓', fair: '≈', over: '✕', none: '?' };
+  const LEAN_ICON = { hold: '▲', sell: '▼', neutral: '•', none: '' };
   const CONF_LABEL = { high: 'High confidence', medium: 'Medium confidence', low: 'Low confidence' };
 
   const usd = (n) =>
@@ -216,9 +248,41 @@
         a.confidence ? h('span', { class: 'fm-conf', title: 'How much the market price can be trusted: number and age of sales, and how sure the card match is.' }, CONF_LABEL[a.confidence]) : null));
   }
 
+  function flipVerdict(f, why) {
+    if (!f?.verdict) {
+      const label = why ?? 'Enter a price to see profit';
+      return h('div', { class: 'fm-verdict none', role: 'status' },
+        h('div', { class: 'fm-verdict-icon', 'aria-hidden': 'true' }, h('span', {}, DEAL_ICON.none)),
+        h('div', { class: 'fm-verdict-main' }, h('div', { class: 'fm-verdict-label' }, label),
+          f ? h('div', { class: 'fm-verdict-sub' }, `Pay ${usd(f.buyUnder)} or less all-in (${f.targetPct}% of market) to flip it${f.venueKey === 'inperson' ? ' in person' : f.venueKey === 'groups' ? ' in groups' : ` on ${f.venue}`}.`) : null));
+    }
+    const costs = f.ship ? ' after fees and shipping' : f.fees ? ' after fees' : '';
+    const sub = `${f.profit >= 0 ? `${usd(f.profit)} profit (${f.roi.toFixed(0)}% return)` : `${usd(-f.profit)} loss`}${costs}, buying at ${f.pctOfMarket.toFixed(0)}% of market`;
+    return h('div', { class: `fm-verdict ${f.verdict.key}`, role: 'status' },
+      h('div', { class: 'fm-verdict-icon', 'aria-hidden': 'true' }, h('span', {}, DEAL_ICON[f.verdict.key])),
+      h('div', { class: 'fm-verdict-main' }, h('div', { class: 'fm-verdict-label' }, f.verdict.label), h('div', { class: 'fm-verdict-sub' }, sub)));
+  }
+
+  function holdBlock(hd, types) {
+    if (!hd) return null;
+    const list = hd.signals.filter((x) => x.text).slice(0, 5);
+    return h('details', { class: 'fm-hold', open: true },
+      h('summary', { class: 'fm-hold-head' },
+        h('span', {}, 'Hold or sell?'),
+        h('span', { class: `fm-lean ${hd.lean.key}` }, `${LEAN_ICON[hd.lean.key]} ${hd.lean.label}`.trim())),
+      types?.length ? h('div', { class: 'fm-tags' }, types.map((t) => h('span', { class: 'fm-tag' }, t.label))) : null,
+      list.length ? h('ul', {}, list.map((x) => h('li', {}, x.text))) : h('div', { class: 'fm-caveat' }, 'No signals yet.'),
+      h('div', { class: 'fm-caveat' }, `Read from ${hd.historyDays ? `${hd.historyDays} days of` : 'no'} price history, not a forecast. Hype waves are hard to time; nothing here can see a reprint or a new set coming.`));
+  }
+
   // state: { status: 'loading' | 'error' | 'empty' | 'ready', item, alternatives, confidence, parsed, ask, message }
   // on: { close, ask(price), pick(alt), subtype(name) }
   function render(root, state, on = {}, opts = {}) {
+    if (!root.__fmRedraw) {
+      root.__fmRedraw = () => (root.isConnected ? render(root, root.__fmArgs.state, root.__fmArgs.on, root.__fmArgs.opts) : redraws.delete(root.__fmRedraw));
+      redraws.add(root.__fmRedraw);
+    }
+    root.__fmArgs = { state, on, opts };
     const card = h('div', { class: `fm-card${opts.floating ? ' fm-floating' : ''}` });
     if (opts.brand !== false) card.append(
       h('div', { class: 'fm-top' },
@@ -262,6 +326,12 @@
           h('div', {}, h('p', { class: 'fm-name' }, item.name), h('div', { class: 'fm-sub' }, sub), subtypeSelect)),
       );
 
+      card.append(
+        h('div', { class: 'fm-mode', role: 'group', 'aria-label': 'View' },
+          h('button', { 'aria-pressed': String(mode === 'buy'), onclick: () => setMode('buy'), title: 'Is this a good price to buy?' }, 'Buy'),
+          h('button', { 'aria-pressed': String(mode === 'flip'), onclick: () => setMode('flip'), title: 'Profit after reselling, and whether to hold' }, 'Flip or hold')),
+      );
+
       const graded = item.graded ?? parsed.grade ?? null;
       const gradeName = graded ? `${graded.company} ${graded.grade}` : '';
       const a = item.assessment ?? {};
@@ -270,30 +340,62 @@
       let why = null;
       if (parsed.lot) why = 'Lot or multiple copies';
       else if (!a.insufficient && reference != null && !state.ask) why = 'Enter a price to rate it';
-      card.append(verdict(why ? null : a, why));
-
       const input = h('input', { type: 'text', inputmode: 'decimal', placeholder: '0.00', 'aria-label': 'Price in US dollars', value: state.ask ? Number(state.ask).toFixed(2) : '' });
       input.addEventListener('change', () => on.ask?.(Number(input.value.replace(/[^0-9.]/g, '')) || null));
       const costParts = [
         a.shipping == null ? 'shipping unknown' : a.shipping === 0 ? 'free shipping' : `${usd(a.shipping)} shipping`,
         `${usd(a.tax)} tax (${a.taxRate}%)`,
       ];
-      card.append(
-        h('div', { class: 'fm-prices' },
-          h('div', { class: 'fm-tile' },
-            h('div', { class: 'fm-label' }, opts.askLabel ?? 'Your price'),
-            h('div', { class: 'fm-ask' }, '$', input),
-            a.allIn ? h('div', { class: 'fm-value-sub', title: `Price + ${costParts.join(' + ')}` }, `All-in ${usd(a.allIn)}`) : null),
-          h('div', { class: 'fm-tile' },
-            h('div', { class: 'fm-label' }, graded ? `${gradeName} market` : 'Market'),
-            h('div', { class: 'fm-value' }, usd(reference)),
-            h('div', { class: 'fm-value-sub' }, graded ? `Ungraded ${usd(item.market)}` : 'TCGplayer')),
-          h('div', { class: 'fm-tile fm-key', title: `The most you can ${a.auction ? 'bid' : 'pay'} and still be ${a.discount}% under market after shipping and tax. Change the target in Settings.` },
-            h('div', { class: 'fm-label' }, a.auction ? 'Max bid' : 'Pay at most'),
-            h('div', { class: 'fm-value' }, usd(a.maxBid)),
-            h('div', { class: 'fm-value-sub' }, `${a.discount ?? 10}% under`))),
-      );
-      if (a.allIn) card.append(h('div', { class: 'fm-value-sub', style: 'margin-top:4px' }, `All-in = price + ${costParts.join(' + ')}`));
+      const askTile = h('div', { class: 'fm-tile' },
+        h('div', { class: 'fm-label' }, opts.askLabel ?? 'Your price'),
+        h('div', { class: 'fm-ask' }, '$', input),
+        a.allIn ? h('div', { class: 'fm-value-sub', title: `Price + ${costParts.join(' + ')}` }, `All-in ${usd(a.allIn)}`) : null);
+      const f = item.flip;
+      if (mode === 'flip') {
+        let fwhy = null;
+        if (parsed.lot) fwhy = 'Lot or multiple copies';
+        else if (!f) fwhy = graded ? `No ${gradeName} price to resell at` : 'No market price to resell at';
+        card.append(
+          flipVerdict(fwhy ? null : f, fwhy),
+          h('div', { class: 'fm-prices' },
+            askTile,
+            h('div', { class: 'fm-tile', title: `What you'd take home selling ${f?.venue ?? ''}${f?.fees || f?.ship ? ', after fees and shipping' : ''}. Change where you sell in Settings.` },
+              h('div', { class: 'fm-label' }, "You'd net"),
+              h('div', { class: 'fm-value' }, usd(f?.net)),
+              h('div', { class: 'fm-value-sub' }, f?.venueKey === 'inperson' ? 'in person' : f?.venueKey === 'groups' ? 'in FB/Discord groups' : `on ${f?.venue ?? 'eBay'}`)),
+            h('div', { class: 'fm-tile fm-key', title: `The most you can pay all-in and still make ${usd(f?.minProfit)}. Change the target in Settings.` },
+              h('div', { class: 'fm-label' }, 'Buy under'),
+              h('div', { class: 'fm-value' }, usd(f?.buyUnder)),
+              h('div', { class: 'fm-value-sub' }, `${f?.targetPct ?? 80}% of market`))),
+        );
+        if (f) {
+          const line = f.fees || f.ship
+            ? `Sell ${f.venueKey === 'inperson' ? 'in person' : f.venueKey === 'groups' ? 'in groups' : `on ${f.venue}`} at ${usd(f.sale)}${f.undercut ? ` (${f.undercut}% under)` : ''} − ${usd(f.fees)} fees${f.ship ? ` − ${usd(f.ship)} shipping` : ', buyer pays shipping'} = ${usd(f.net)}`
+            : `Sell ${f.venueKey === 'inperson' ? 'in person' : `in ${f.venue}`} at ${f.undercut ? `${usd(f.sale)}, ${f.undercut}% under market` : `market, ${usd(f.sale)}`}. No fees or shipping.`;
+          card.append(h('div', { class: 'fm-value-sub', style: 'margin-top:4px' }, line));
+          const others = (item.flipCompare ?? []).filter((c) => c.venueKey !== f.venueKey);
+          if (others.length) {
+            card.append(h('div', { class: 'fm-value-sub', style: 'margin-top:2px', title: 'What you would net selling elsewhere. Change where you sell in Settings.' },
+              `Net elsewhere: ${others.map((c) => `${c.venueKey === 'groups' ? 'groups' : c.venue} ${usd(c.net)}`).join(' · ')}`));
+          }
+        }
+        card.append(holdBlock(item.hold, item.types));
+      } else {
+        card.append(
+          verdict(why ? null : a, why),
+          h('div', { class: 'fm-prices' },
+            askTile,
+            h('div', { class: 'fm-tile' },
+              h('div', { class: 'fm-label' }, graded ? `${gradeName} market` : 'Market'),
+              h('div', { class: 'fm-value' }, usd(reference)),
+              h('div', { class: 'fm-value-sub' }, graded ? `Ungraded ${usd(item.market)}` : 'TCGplayer')),
+            h('div', { class: 'fm-tile fm-key', title: `The most you can ${a.auction ? 'bid' : 'pay'} and still be ${a.discount}% under market after shipping and tax. Change the target in Settings.` },
+              h('div', { class: 'fm-label' }, a.auction ? 'Max bid' : 'Pay at most'),
+              h('div', { class: 'fm-value' }, usd(a.maxBid)),
+              h('div', { class: 'fm-value-sub' }, `${a.discount ?? 10}% under`))),
+        );
+        if (a.allIn) card.append(h('div', { class: 'fm-value-sub', style: 'margin-top:4px' }, `All-in = price + ${costParts.join(' + ')}`));
+      }
 
       const ppt = item.ppt ?? {};
       if (graded && reference == null) {
@@ -306,7 +408,7 @@
       } else if (parsed.lot) {
         card.append(h('div', { class: 'fm-note' }, 'This looks like a lot or multiple copies, so compare against the market price times the quantity.'));
       }
-      if (a.reasons?.length) {
+      if (mode === 'buy' && a.reasons?.length) {
         card.append(h('details', { class: 'fm-why' }, h('summary', {}, 'Why this rating?'), h('ul', {}, a.reasons.map((r) => h('li', {}, r)))));
       }
 
