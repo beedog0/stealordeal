@@ -4,6 +4,7 @@ import { DATA_BASE, CATEGORIES } from './src/config.js';
 import { buildSearch, confidence, parseTitle, pickSubtype, searchAll } from './src/match.js';
 import { DEFAULT_SETTINGS, assess, historyStats, seriesPoints, trendPct } from './src/price.js';
 import { FLIP_DEFAULTS, cardTypes, flip, flipCompare, hold } from './src/flip.js';
+import { compStats, reconcile } from './src/comps.js';
 import { PPT_BASE, describeShape, mergePoints, pptGradedHistory, pptGradedPrice, pptHistoryPoints, pptUrl } from './src/ppt.js';
 
 const CACHE = 'fm-data-v1';
@@ -119,8 +120,10 @@ function compsUrl(product, grade) {
   const name = product.name.replace(/\s+-\s+[^-]*\d[^-]*$/, '');
   const q = [name, product.number, product.catId === 85 ? 'japanese' : '', grade ? `${grade.company} ${grade.grade}` : '']
     .filter(Boolean).join(' ');
-  return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(q)}&LH_Sold=1&LH_Complete=1`;
+  return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(q)}&LH_Sold=1&LH_Complete=1&_sop=13&_ipg=120`;
 }
+
+const usd = (n) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 async function getSettings() {
   const { fmSettings } = await chrome.storage.local.get('fmSettings');
@@ -148,7 +151,8 @@ function typeTrendFor(product, trends) {
 // Full price details for one product and printing.
 //   listing: { shipping, auction } read from the page, when there is one.
 //   match: how sure the title match is ('high' | 'medium' | 'low').
-async function details(catId, productId, subtype, ask, grade = null, listing = {}, match = 'high') {
+//   soldPage: { url, status, sales } read from eBay's sold listings by the page, when it could.
+async function details(catId, productId, subtype, ask, grade = null, listing = {}, match = 'high', soldPage = null) {
   const search = await loadSearch(catId);
   const product = search.products[search.byId.get(productId)];
   if (!product) return null;
@@ -170,10 +174,17 @@ async function details(catId, productId, subtype, ask, grade = null, listing = {
   const trend30 = trendPct(shown, 30);
   const trend90 = trendPct(shown, 90);
   const settings = await getSettings();
-  const reference = grade
+  const tracked = grade
     ? { price: graded.price, source: 'graded', name: `${grade.company} ${grade.grade}`, label: `${grade.company} ${grade.grade} price`, sales: graded.sales, lastSale: ppt.graded?.lastSale }
     : { price: marketPrice, source: 'market', label: 'TCGplayer market price' };
+  // eBay sold comps for this card and grade confirm the price, or replace it when they disagree.
+  const comps = compsUrl(product, grade);
+  const soldFor = soldPage?.url === comps ? soldPage : null;
+  const { reference, sold } = soldFor?.status === 'ok'
+    ? reconcile(tracked, compStats(soldFor.sales, { ...product, catId }, grade), grade ? `${grade.company} ${grade.grade}` : '')
+    : { reference: tracked, sold: null };
   const assessment = assess({ ...settings, price: ask, shipping: listing.shipping ?? null, auction: Boolean(listing.auction), reference, trend30, trend90, match });
+  if (sold?.agree && assessment.verdict) assessment.reasons.splice(1, 0, `Confirmed by ${sold.count} eBay sales, median ${usd(sold.median)}.`);
   const typeTrend = typeTrendFor({ ...product, catId }, await getTrends(catId));
   return {
     ...summary(product, search),
@@ -188,7 +199,8 @@ async function details(catId, productId, subtype, ask, grade = null, listing = {
     gradedHistory: shown === gradedPoints,
     points: shown,
     stats,
-    compsUrl: compsUrl(product, grade),
+    compsUrl: comps,
+    sold: soldFor ? { status: soldFor.status, ...sold } : null,
     // A graded listing is only rated against sales of the same grade.
     assessment,
     types: cardTypes({ ...product, catId }),
@@ -201,14 +213,14 @@ async function details(catId, productId, subtype, ask, grade = null, listing = {
   };
 }
 
-async function lookup({ title, price, hints, listing }) {
+async function lookup({ title, price, hints, listing, sold }) {
   const indexes = await loadAll();
   const parsed = parseTitle(title, hints ?? {});
   const results = searchAll(indexes, parsed, 5);
   const conf = confidence(results);
   if (!results.length) return { confidence: conf, parsed };
   const best = results[0].product;
-  const item = await details(best.catId, best.productId, pickSubtype(best.subtypes, parsed.finish), price, parsed.grade, listing, conf);
+  const item = await details(best.catId, best.productId, pickSubtype(best.subtypes, parsed.finish), price, parsed.grade, listing, conf, sold);
   return {
     confidence: conf,
     parsed,
@@ -275,8 +287,8 @@ const handlers = {
   async lookup(msg) {
     return lookup(msg);
   },
-  async details({ catId, productId, subtype, price, grade, listing, match }) {
-    return details(catId ?? (await findProduct(productId)), productId, subtype, price, grade ?? null, listing, match);
+  async details({ catId, productId, subtype, price, grade, listing, match, sold }) {
+    return details(catId ?? (await findProduct(productId)), productId, subtype, price, grade ?? null, listing, match, sold ?? null);
   },
   async search({ query }) {
     const indexes = await loadAll();
