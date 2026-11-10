@@ -111,6 +111,18 @@
 .fm-hold ul { margin: 6px 0 2px; padding-left: 18px; font-size: 12px; color: var(--fm-ink-2); }
 .fm-hold li + li { margin-top: 3px; }
 .fm-hold .fm-caveat { margin-top: 6px; font-size: 11px; color: var(--fm-muted); }
+.fm-sold { margin-top: 8px; background: var(--fm-raised); border-radius: 8px; padding: 8px 10px; font-size: 12px; color: var(--fm-ink-2); }
+.fm-sold-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 600; }
+.fm-sold-line { margin-top: 3px; font-variant-numeric: tabular-nums; }
+.fm-sold-line strong { color: var(--fm-ink); }
+.fm-sold a { color: var(--fm-line); text-decoration: none; }
+.fm-sold a:hover { text-decoration: underline; }
+.fm-sold details { margin-top: 4px; }
+.fm-sold summary { cursor: pointer; color: var(--fm-muted); font-size: 11px; }
+.fm-sold ol { list-style: none; margin: 4px 0 0; padding: 0; }
+.fm-sold li { display: grid; grid-template-columns: 52px 1fr auto; gap: 6px; padding: 2px 0; font-size: 11px; font-variant-numeric: tabular-nums; }
+.fm-sold li span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fm-muted); }
+.fm-lean.warn { color: var(--fm-pricey-ink); background: var(--fm-pricey-bg); }
 .fm-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .fm-tag { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--fm-border); color: var(--fm-ink-2); }
 .fm-skel { height: 12px; border-radius: 6px; background: var(--fm-raised); margin: 8px 0; animation: fm-pulse 1.2s ease-in-out infinite; }
@@ -263,6 +275,44 @@
       h('div', { class: 'fm-verdict-main' }, h('div', { class: 'fm-verdict-label' }, f.verdict.label), h('div', { class: 'fm-verdict-sub' }, sub)));
   }
 
+  // eBay sold comps: what the same card (and grade) actually sold for lately.
+  function soldBlock(item, loading, gradeName) {
+    const sd = item.sold;
+    const what = gradeName ? `${gradeName} ` : '';
+    const link = item.compsUrl ? h('a', { href: item.compsUrl, target: '_blank', rel: 'noopener noreferrer' }, 'See all ↗') : null;
+    const box = (lean, ...body) => h('div', { class: 'fm-sold' }, h('div', { class: 'fm-sold-head' }, h('span', {}, `Last sold on eBay${gradeName ? ` · ${gradeName}` : ''}`), lean), ...body);
+    if (loading && !sd) return box(null, h('div', { class: 'fm-sold-line' }, 'Checking eBay sold listings…'));
+    if (!sd) return null;
+    if (sd.status === 'signin') return box(null, h('div', { class: 'fm-sold-line' }, 'Sign in to eBay to check sold prices here. ', link));
+    if (sd.status !== 'ok') return box(null, h('div', { class: 'fm-sold-line' }, `Couldn't read eBay sold listings${sd.error ? ` (${sd.error})` : ''}. `, link));
+    if (!sd.count || sd.count < 3) {
+      return box(null, h('div', { class: 'fm-sold-line' }, sd.count ? `Only ${sd.count} matching ${what}sale${sd.count === 1 ? '' : 's'} in 90 days, too few to rate on. ` : `No matching ${what}sales in 90 days. `, link), salesList(sd));
+    }
+    const lean = sd.agree
+      ? h('span', { class: 'fm-lean hold', title: `Within ${15}% of the tracker price` }, 'Confirms market')
+      : sd.tracker
+        ? h('span', { class: 'fm-lean warn', title: 'The rating uses the eBay sold median instead of the tracker price' }, `${Math.abs(sd.diffPct).toFixed(0)}% ${sd.diffPct < 0 ? 'below' : 'above'} market`)
+        : h('span', { class: 'fm-lean' }, 'Used for rating');
+    return box(lean,
+      h('div', { class: 'fm-sold-line' }, 'Median ', h('strong', {}, usd(sd.median)), ` of the last ${sd.count} sales · ${usd(sd.low)}–${usd(sd.high)}${sd.lastSale ? ` · latest ${fmtDate(sd.lastSale)}` : ''}`),
+      sd.used && sd.tracker ? h('div', { class: 'fm-sold-line' }, `Rated against sold prices, not the ${usd(sd.tracker)} tracker price.`) : null,
+      sd.bestOffers ? h('div', { class: 'fm-sold-line' }, `${sd.bestOffers} best-offer sale${sd.bestOffers === 1 ? '' : 's'} counted at the asking price.`) : null,
+      salesList(sd, link));
+  }
+
+  function salesList(sd, link = null) {
+    if (!sd.sales?.length) return null;
+    return h('details', {},
+      h('summary', {}, `Recent sales${sd.rejected ? ` (${sd.rejected} other listings left out)` : ''}`),
+      h('ol', {}, sd.sales.map((s) =>
+        h('li', { title: s.title },
+          h('span', {}, s.date ? fmtDate(s.date) : '—'),
+          h('span', {}, s.url ? h('a', { href: s.url, target: '_blank', rel: 'noopener noreferrer' }, s.title) : s.title),
+          h('span', {}, `${usd(s.price)}${s.bestOffer ? '*' : ''}`)))),
+      sd.sales.some((s) => s.bestOffer) ? h('div', { class: 'fm-value-sub' }, '* Best offer accepted: the price paid was lower.') : null,
+      link ? h('div', { class: 'fm-value-sub' }, link) : null);
+  }
+
   function holdBlock(hd, types) {
     if (!hd) return null;
     const list = hd.signals.filter((x) => x.text).slice(0, 5);
@@ -335,7 +385,8 @@
       const graded = item.graded ?? parsed.grade ?? null;
       const gradeName = graded ? `${graded.company} ${graded.grade}` : '';
       const a = item.assessment ?? {};
-      const reference = graded ? graded.price ?? null : item.market;
+      const soldUsed = Boolean(item.sold?.used);
+      const reference = soldUsed ? item.sold.median : graded ? graded.price ?? null : item.market;
 
       let why = null;
       if (parsed.lot) why = 'Lot or multiple copies';
@@ -386,9 +437,9 @@
           h('div', { class: 'fm-prices' },
             askTile,
             h('div', { class: 'fm-tile' },
-              h('div', { class: 'fm-label' }, graded ? `${gradeName} market` : 'Market'),
+              h('div', { class: 'fm-label' }, soldUsed ? `${gradeName ? `${gradeName} ` : 'eBay '}sold` : graded ? `${gradeName} market` : 'Market'),
               h('div', { class: 'fm-value' }, usd(reference)),
-              h('div', { class: 'fm-value-sub' }, graded ? `Ungraded ${usd(item.market)}` : 'TCGplayer')),
+              h('div', { class: 'fm-value-sub' }, soldUsed && item.sold.tracker ? `Tracker ${usd(item.sold.tracker)}` : soldUsed ? `${item.sold.count} sales` : graded ? `Ungraded ${usd(item.market)}` : 'TCGplayer')),
             h('div', { class: 'fm-tile fm-key', title: `The most you can ${a.auction ? 'bid' : 'pay'} and still be ${a.discount}% under market after shipping and tax. Change the target in Settings.` },
               h('div', { class: 'fm-label' }, a.auction ? 'Max bid' : 'Pay at most'),
               h('div', { class: 'fm-value' }, usd(a.maxBid)),
@@ -396,6 +447,9 @@
         );
         if (a.allIn) card.append(h('div', { class: 'fm-value-sub', style: 'margin-top:4px' }, `All-in = price + ${costParts.join(' + ')}`));
       }
+
+      const soldBox = soldBlock(item, Boolean(state.soldLoading), gradeName);
+      if (soldBox) card.append(soldBox);
 
       const ppt = item.ppt ?? {};
       if (graded && reference == null) {

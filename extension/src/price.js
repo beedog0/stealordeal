@@ -96,8 +96,9 @@ export function assess(input) {
   // Confidence: how much the reference price can be trusted, then capped by the title match.
   let confidence = 'high';
   let insufficient = null;
+  const salesBased = reference?.source === 'graded' || reference?.source === 'sold';
   if (!ref) insufficient = reference?.source === 'graded' ? `No recent ${what} sales` : 'No market price yet';
-  else if (reference.source === 'graded') {
+  else if (salesBased) {
     const n = reference.sales ?? 0;
     const age = daysSince(reference.lastSale, now);
     if (n < 3) insufficient = `Only ${n} recent ${what} sale${n === 1 ? '' : 's'}`;
@@ -132,7 +133,13 @@ export function assess(input) {
   if (trend30 != null && Math.abs(trend30) >= 5 && !reasons.some((r) => r.startsWith('Prices fell'))) {
     reasons.push(`Prices are ${trend30 > 0 ? 'up' : 'down'} ${Math.abs(trend30).toFixed(0)}% over 30 days.`);
   }
-  if (reference?.source === 'graded' && ref) {
+  if (reference?.source === 'sold' && ref) {
+    const age = daysSince(reference.lastSale, now);
+    const tracker = reference.tracker > 0
+      ? ` That is ${Math.abs(((ref - reference.tracker) / reference.tracker) * 100).toFixed(0)}% ${ref < reference.tracker ? 'below' : 'above'} the ${reference.trackerLabel ?? 'tracker price'} of ${fmt(reference.tracker)}, so the rating uses what it actually sold for.`
+      : '';
+    reasons.splice(1, 0, `Median of the last ${reference.sales} eBay sales${age != null ? `, the latest ${age === 0 ? 'today' : `${age} day${age === 1 ? '' : 's'} ago`}` : ''}.${tracker}`);
+  } else if (reference?.source === 'graded' && ref) {
     const age = daysSince(reference.lastSale, now);
     reasons.push(`Based on ${reference.sales ?? 'recent'} ${what} eBay sales${age != null ? `, the latest ${age === 0 ? 'today' : `${age} day${age === 1 ? '' : 's'} ago`}` : ''}.`);
   }

@@ -48,12 +48,28 @@
 
     async function refresh(productId, subtype, catId) {
       try {
-        const item = await send({ type: 'details', productId, subtype, price: state.ask, catId: catId ?? state.item?.catId, grade: state.parsed?.grade, listing: state.listing, match: state.confidence ?? 'high' });
+        const item = await send({ type: 'details', productId, subtype, price: state.ask, catId: catId ?? state.item?.catId, grade: state.parsed?.grade, listing: state.listing, match: state.confidence ?? 'high', sold: state.sold });
         Object.assign(state, { status: item ? 'ready' : 'empty', item });
       } catch (err) {
         Object.assign(state, { status: 'error', message: `Couldn't load prices: ${err.message}` });
       }
       draw();
+      loadSold();
+    }
+
+    // Read eBay's sold listings for the matched card (only possible on eBay pages, where
+    // the request carries the user's sign-in), then rate again with them. Once per search URL.
+    async function loadSold() {
+      const url = state.item?.compsUrl;
+      if (!url || !globalThis.FairmarkSold || !/(^|\.)ebay\.com$/.test(location.hostname)) return;
+      if (state.sold?.url === url || state.soldLoading === url) return;
+      state.soldLoading = url;
+      draw();
+      const res = await FairmarkSold.fetch(url);
+      if (state.soldLoading !== url) return;
+      state.soldLoading = null;
+      state.sold = { url, ...res };
+      await refresh(state.item.productId, state.item.subtype);
     }
 
     draw();
@@ -73,6 +89,7 @@
       Object.assign(state, { status: 'error', message: `Couldn't load prices: ${err.message}` });
     }
     draw();
+    loadSold();
   }
 
   globalThis.FairmarkPanel = { show, remove: () => host?.remove() };
