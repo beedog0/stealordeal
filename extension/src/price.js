@@ -85,6 +85,9 @@ export function trendPct(points, days, now = Date.now()) {
 //   reference: { price, source: 'graded' | 'market', label, sales, lastSale, updated },
 //   trend30 (%), match: 'high' | 'medium' | 'low', now
 // }
+// All-in this far under market (%) on a fixed-price listing is treated as a likely mismatch.
+export const SUSPECT_PCT = -60;
+
 export function assess(input) {
   const { price, shipping = null, auction = false, reference, trend30 = null, trend90 = null, match = 'high', now = Date.now() } = input;
   const taxRate = (input.taxRate ?? DEFAULT_SETTINGS.taxRate) / 100;
@@ -130,6 +133,14 @@ export function assess(input) {
     }
     if (confidence === 'low' && verdict.key === 'steal') verdict = downgrade(verdict);
   }
+  // A fixed price far below market is almost never a real deal: usually the title matched the
+  // wrong card or version, or the listing is fake. Auction bids start low, so they're exempt.
+  const suspect = !auction && pct != null && pct <= SUSPECT_PCT;
+  if (suspect) {
+    verdict = null;
+    confidence = 'low';
+    reasons.splice(1, 0, 'A gap this big usually means Fairmark matched the wrong card or version, or the listing is not genuine. Check the match before buying.');
+  }
   if (trend30 != null && Math.abs(trend30) >= 5 && !reasons.some((r) => r.startsWith('Prices fell'))) {
     reasons.push(`Prices are ${trend30 > 0 ? 'up' : 'down'} ${Math.abs(trend30).toFixed(0)}% over 30 days.`);
   }
@@ -148,6 +159,7 @@ export function assess(input) {
 
   return {
     verdict: verdict ? { key: verdict.key, label: verdict.label } : null,
+    suspect,
     insufficient,
     confidence: insufficient ? null : confidence,
     price: price > 0 ? price : null,

@@ -243,8 +243,10 @@
   // The headline: a colored verdict with its confidence, or a neutral line saying why there isn't one.
   function verdict(a, why) {
     if (!a?.verdict) {
-      const label = why ?? (a?.insufficient ? 'Not enough data' : 'No rating');
-      const sub = !why && a?.insufficient ? `${a.insufficient}, so there's no reliable price to compare with.` : null;
+      const label = why ?? (a?.suspect ? 'Check the match' : a?.insufficient ? 'Not enough data' : 'No rating');
+      const sub = why ? null
+        : a?.suspect ? `All-in ${Math.abs(a.pct).toFixed(0)}% under market is too good to be true. This is probably a different card or version.`
+        : a?.insufficient ? `${a.insufficient}, so there's no reliable price to compare with.` : null;
       return h('div', { class: 'fm-verdict none', role: 'status' },
         h('div', { class: 'fm-verdict-icon', 'aria-hidden': 'true' }, h('span', {}, DEAL_ICON.none)),
         h('div', { class: 'fm-verdict-main' }, h('div', { class: 'fm-verdict-label' }, label), sub ? h('div', { class: 'fm-verdict-sub' }, sub) : null));
@@ -389,7 +391,7 @@
       const reference = soldUsed ? item.sold.median : graded ? graded.price ?? null : item.market;
 
       let why = null;
-      if (parsed.lot) why = 'Lot or multiple copies';
+      if (parsed.lot) why = 'Multi-card listing';
       else if (!a.insufficient && reference != null && !state.ask) why = 'Enter a price to rate it';
       const input = h('input', { type: 'text', inputmode: 'decimal', placeholder: '0.00', 'aria-label': 'Price in US dollars', value: state.ask ? Number(state.ask).toFixed(2) : '' });
       input.addEventListener('change', () => on.ask?.(Number(input.value.replace(/[^0-9.]/g, '')) || null));
@@ -452,6 +454,7 @@
       if (soldBox) card.append(soldBox);
 
       const ppt = item.ppt ?? {};
+      if (parsed.lot) card.append(h('div', { class: 'fm-note' }, 'This looks like a multi-card listing or several copies. Fairmark matched one card, so compare against the sum of each card\'s price.'));
       if (graded && reference == null) {
         const reason =
           ppt.status === 'nokey' ? `Add a PokemonPriceTracker key in Settings to compare with ${gradeName} sales.`
@@ -459,8 +462,6 @@
           : ppt.status === 'error' ? `Couldn't load graded prices (${ppt.error}).`
           : `No recent ${gradeName} sales found.`;
         card.append(h('div', { class: 'fm-note' }, `${reason} Graded copies usually sell for well above the ungraded price.`));
-      } else if (parsed.lot) {
-        card.append(h('div', { class: 'fm-note' }, 'This looks like a lot or multiple copies, so compare against the market price times the quantity.'));
       }
       if (mode === 'buy' && a.reasons?.length) {
         card.append(h('details', { class: 'fm-why' }, h('summary', {}, 'Why this rating?'), h('ul', {}, a.reasons.map((r) => h('li', {}, r)))));

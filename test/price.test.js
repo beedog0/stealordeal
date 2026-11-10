@@ -69,3 +69,14 @@ test('a long slide counts as falling too', () => {
   assert.equal(a.verdict.key, 'good');
   assert.match(a.reasons.join(' '), /fell 30% in the last 90 days/);
 });
+
+test('a fixed price far under market is flagged, not rated a strong buy', () => {
+  const reference = { price: 3164.5, source: 'graded', label: 'PSA 10 market', name: 'PSA 10', sales: 12, lastSale: new Date().toISOString() };
+  const a = assess({ price: 95, shipping: 5.99, reference, match: 'medium' });
+  assert.equal(a.suspect, true);
+  assert.equal(a.verdict, null);
+  assert.equal(a.confidence, 'low');
+  const bid = assess({ price: 95, shipping: 5.99, reference, auction: true });
+  assert.equal(bid.suspect, false);
+  assert.equal(bid.verdict.key, 'steal');
+});

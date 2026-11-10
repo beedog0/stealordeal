@@ -45,7 +45,8 @@ const stripZeros = (s) => s.replace(/^([a-z]*)0+(?=\d)/, '$1');
 
 // "199/165" -> { num: '199', total: '165' }; "TG12/TG30" -> { num: 'tg12', total: 'tg30' }.
 export function parseNumber(s) {
-  const m = String(s ?? '').toLowerCase().match(/([a-z]{0,5}\d{1,4}[a-z]?)\s*\/\s*([a-z]{0,5}\d{1,4})/);
+  // Promo totals can be set codes: "120/SV-P", "SWSH050/S-P".
+  const m = String(s ?? '').toLowerCase().match(/([a-z]{0,5}\d{1,4}[a-z]?)\s*\/\s*([a-z]{0,5}\d{1,4}|[a-z]{1,4}-p)\b/);
   if (m) return { num: stripZeros(m[1]), total: stripZeros(m[2]) };
   const single = String(s ?? '').toLowerCase().trim();
   return single ? { num: stripZeros(single), total: '' } : null;
@@ -74,7 +75,7 @@ export function parseTitle(title, hints = {}) {
   const raw = String(title ?? '');
   const lower = raw.toLowerCase();
   const numbers = [];
-  for (const m of lower.matchAll(/([a-z]{0,5}\d{1,4}[a-z]?)\s*\/\s*([a-z]{0,5}\d{1,4})\b/g)) {
+  for (const m of lower.matchAll(/([a-z]{0,5}\d{1,4}[a-z]?)\s*\/\s*([a-z]{0,5}\d{1,4}|[a-z]{1,4}-p)\b/g)) {
     numbers.push({ num: stripZeros(m[1]), total: stripZeros(m[2]) });
   }
   for (const m of lower.matchAll(/#\s*([a-z]{0,5}\d{1,4}[a-z]?)\b/g)) numbers.push({ num: stripZeros(m[1]), total: '' });
@@ -87,8 +88,24 @@ export function parseTitle(title, hints = {}) {
   else if (/\b(foil|holo|holofoil|etched)\b/.test(lower) && !/non[\s-]?foil/.test(lower)) finish = 'foil';
   if (/1st\s*edition/.test(lower)) finish = finish ? `1st ${finish}` : '1st';
 
-  const lot = /\b(lot|playset|bundle of|set of)\b|\bx\s?[2-9]\b|\b[2-9]\s?x\b/.test(lower);
-  return { tokens: tokens(raw), numbers, grade, finish, lot, games: gamesFor(lower, hints) };
+  const lot = /\b(lot|playset|bundle of|set of|pair)\b|\bx\s?[2-9]\b|\b[2-9]\s?x\b|\b[2-9]\s*-?\s*(card|cards|pc|pcs|piece)\s*(set|lot|bundle|combo)\b/.test(lower);
+  return { tokens: tokens(raw), numbers, grade, finish, lot, rarity: parseRarity(lower), games: gamesFor(lower, hints) };
+}
+
+// Rarity named in a title, as a test for TCGplayer rarity names. Japanese sets say
+// "Art Rare" where English sets say "Illustration Rare", so each covers both.
+const RARITIES = [
+  [/\b(sar|sir|special art rare|special illustration rare)\b/, /^special (art|illustration) rare$/i],
+  [/\b(chr|character rare)\b/, /^character rare$/i],
+  [/\b(csr|character super rare)\b/, /^character super rare$/i],
+  [/\b(ar|ir)\b|(?<!special |full )\b(art|illustration) rare\b/, /^(art|illustration) rare$/i],
+  [/\b(hyper rare)\b/, /^hyper rare$/i],
+  [/\b(double rare)\b/, /^double rare$/i],
+  [/\bace spec\b/, /^ace spec rare$/i],
+];
+function parseRarity(lower) {
+  for (const [re, rarity] of RARITIES) if (re.test(lower)) return rarity;
+  return null;
 }
 
 // Build an in-memory search structure from an index.json payload.
@@ -182,6 +199,8 @@ export function scoreProduct(search, p, q, qset) {
   let score = 6 * (nameHit / nameTotal) + 3 * (queryTotal ? queryHit / queryTotal : 0);
   score += groupTotal ? 2 * (groupHit / groupTotal) : 0;
   score += numberScore(p, q.numbers);
+  // Breaks ties between printings with the same name, like Kyogre 018/076 Rare and 080/076 Art Rare.
+  if (q.rarity && p.rarity && q.rarity.test(p.rarity)) score += 2.5;
   if (group && REPRINT_GROUP.test(group.name)) {
     const distinct = group.nameTokens.filter((t) => !GENERIC_GROUP.has(t) && !/^(19|20)\d\d$/.test(t));
     if (distinct.length && distinct.every((t) => qset.has(t))) score += 6;
